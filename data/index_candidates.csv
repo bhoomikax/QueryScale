@@ -1,3 +1,2 @@
 candidate_id,table,columns,score,recommended_action,reason
-IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE,Transactions,"account_id, txn_date",274.339,"CREATE INDEX idx_transactions_account_id_txn_date ON Transactions (account_id, txn_date);",High query frequency and filter usage indicate this index would reduce expensive scans.
-IDX_TRANSACTIONS_TXN_DATE_MONTH,Transactions,"txn_date, month",98.344,"CREATE INDEX idx_transactions_txn_date_month ON Transactions (txn_date, month);",High query frequency and filter usage indicate this index would reduce expensive scans.
+IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE,Transactions,"account_id, txn_date",226.734,"CREATE INDEX idx_transactions_account_id_txn_date ON Transactions (account_id, txn_date);",High query frequency and filter usage indicate this index would reduce expensive scans.

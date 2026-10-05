@@ -164,8 +164,10 @@ def run_benchmark(
     """Benchmark one index candidate using the same replay before and after."""
 
     plan = _build_replay_plan(iterations)
+    _execute_replay(plan)
     before = _execute_replay(plan)
     application: IndexApplication = apply_index(candidate_id, table, columns)
+    _execute_replay(plan)
     after = _execute_replay(plan)
 
     rows: list[dict[str, object]] = []

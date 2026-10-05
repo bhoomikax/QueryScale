@@ -24,7 +24,14 @@ def _priority_for(score: float) -> str:
         return "medium"
     return "low"
 
-
+#score =
+#    frequency × 2
+ # + execution_time × 0.5
+ # + WHERE usage × 10
+ # + JOIN usage × 6
+ # + ORDER usage × 4
+ # + table-size component
+  
 def generate_recommendations(candidate_path: str | Path, output_path: str | Path) -> List[Dict[str, object]]:
     candidates = _read_candidates(candidate_path)
     recommendations: List[Dict[str, object]] = []

@@ -46,7 +46,7 @@ This performs the following stages:
 4. Extracts features and generates index recommendations.
 5. Rebuilds the isolated `queryscale_test` database.
 6. Applies the selected recommendation only to `queryscale_test`.
-7. Runs before/after benchmarks and writes measured results.
+7. Warms up and runs before/after benchmarks, then writes measured results.
 8. Starts the API and dashboard when `--serve` is provided.
 
 For a smaller local run, keep enough workload iterations to sample recommendation candidates:
@@ -108,7 +108,7 @@ The dashboard is served by FastAPI at `/dashboard/`. It displays:
 
 - Query, slow-query, recommendation, and priority counts
 - Top recommendation cards
-- Before/after benchmark comparisons
+- Before/after benchmark comparisons weighted by measured query executions
 - Recommendation score bars
 - Query frequency and measured latency
 

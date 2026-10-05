@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from backend.app import app
+from backend.routes.benchmark import _aggregate_results
 from backend.routes.queries import read_query_logs
 from backend.routes.recommendations import read_recommendations
 
@@ -44,6 +45,17 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(queries[0]["tables"], ["Transactions"])
             self.assertEqual(recommendations[0]["columns"], ["account_id"])
             self.assertEqual(recommendations[0]["score"], 87.5)
+
+    def test_benchmark_aggregate_weights_query_groups_by_execution_count(self):
+        summary = _aggregate_results([
+            {"before_avg_ms": 10.0, "after_avg_ms": 20.0, "execution_count": 9},
+            {"before_avg_ms": 100.0, "after_avg_ms": 50.0, "execution_count": 1},
+        ])
+
+        self.assertEqual(summary["before_ms"], 19.0)
+        self.assertEqual(summary["after_ms"], 23.0)
+        self.assertEqual(summary["improvement_percentage"], -21.053)
+        self.assertEqual(summary["execution_count"], 10)
 
 
 if __name__ == "__main__":
