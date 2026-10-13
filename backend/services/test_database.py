@@ -10,6 +10,7 @@ from mysql.connector import MySQLConnection
 from mysql.connector.errors import Error as MySQLError
 
 from backend.config import settings
+from backend.database import close_connection, open_connection
 
 
 EXPECTED_TABLES = ("Branches", "Customers", "Accounts", "Transactions", "Loans")
@@ -33,7 +34,7 @@ def _server_config() -> dict[str, object]:
 
 def _connect_to_server() -> MySQLConnection:
     try:
-        return mysql.connector.connect(**_server_config())
+        return open_connection(_server_config())
     except MySQLError as exc:
         raise RuntimeError(
             f"Unable to connect to MySQL at {settings.db_host}:{settings.db_port}. "
@@ -98,7 +99,7 @@ def clone_test_database() -> tuple[str, ...]:
         raise RuntimeError(f"Unable to create the isolated QueryScale test database: {exc}") from exc
     finally:
         cursor.close()
-        connection.close()
+        close_connection(connection)
 
 
 def main() -> int:

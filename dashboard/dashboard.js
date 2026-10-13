@@ -3,6 +3,16 @@
 const refreshButton = document.querySelector("#refresh-dashboard");
 const renderedAt = document.querySelector("#rendered-at");
 const workspaceState = document.querySelector("#workspace-state");
+const jobList = document.querySelector("#benchmark-jobs");
+const jobsNotice = document.querySelector("#jobs-notice");
+
+let recentJobs = [];
+let jobResults = new Map();
+let jobPollTimer = null;
+let jobPollFailures = 0;
+let dashboardQueries = [];
+let dashboardSlowQueries = [];
+let dashboardRecommendations = [];
 
 function setMetric(name, value) {
   const element = document.querySelector(`[data-metric="${name}"]`);
@@ -63,6 +73,13 @@ function renderRecommendations(recommendations) {
     score.className = "recommendation-score";
     score.textContent = `Score ${Number(recommendation.score || 0).toFixed(1)}`;
     item.append(heading, target, reason, score);
+    const runButton = document.createElement("button");
+    runButton.className = "benchmark-button";
+    runButton.type = "button";
+    runButton.dataset.candidateId = recommendation.candidate_id || "";
+    runButton.textContent = "Queue benchmark";
+    runButton.addEventListener("click", () => submitBenchmark(runButton.dataset.candidateId, runButton));
+    item.appendChild(runButton);
     container.appendChild(item);
   });
 }
@@ -76,6 +93,130 @@ async function fetchJson(url) {
     throw new Error(`Request failed: ${url}`);
   }
   return response.json();
+}
+
+function renderJobs(jobs) {
+  if (!jobList) {
+    return;
+  }
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    showListEmpty(jobList, "No benchmark jobs yet", "Choose a recommendation to queue a benchmark.");
+    return;
+  }
+  jobList.replaceChildren();
+  jobs.forEach((job) => {
+    const card = document.createElement("article");
+    card.className = "benchmark-job";
+    const heading = document.createElement("strong");
+    heading.textContent = `${job.candidate_id || "Benchmark"} | ${job.status}`;
+    const id = document.createElement("span");
+    id.className = "benchmark-job-id";
+    id.textContent = `Job ${job.job_id}`;
+    const detail = document.createElement("span");
+    detail.className = "benchmark-job-detail";
+    detail.textContent = `${job.table || ""} / ${(job.columns || []).join(", ")} | ${job.iterations} iterations`;
+    card.append(heading, id, detail);
+    const result = jobResults.get(job.job_id);
+    if (result) {
+      const summary = document.createElement("span");
+      summary.className = "benchmark-job-detail";
+      summary.textContent = `Before ${result.before_ms} ms -> after ${result.after_ms} ms | ${result.speedup}x speedup | ${result.improvement_percentage}% improvement`;
+      card.appendChild(summary);
+    }
+    if (job.error) {
+      const error = document.createElement("span");
+      error.className = "benchmark-job-error";
+      error.textContent = job.error;
+      card.appendChild(error);
+    }
+    jobList.appendChild(card);
+  });
+}
+
+function scheduleJobPoll(delay = 2500) {
+  if (jobPollTimer) {
+    clearTimeout(jobPollTimer);
+  }
+  jobPollTimer = setTimeout(pollJobs, delay);
+}
+
+async function pollJobs() {
+  try {
+    recentJobs = await fetchJson("/api/benchmark/jobs?limit=20");
+    jobPollFailures = 0;
+    const succeededWithoutResult = recentJobs.filter(
+      (job) => job.status === "succeeded" && !jobResults.has(job.job_id) && job.result_url,
+    );
+    const loadedResults = await Promise.allSettled(
+      succeededWithoutResult.map(async (job) => {
+        const result = await fetchJson(job.result_url);
+        jobResults.set(job.job_id, result);
+      }),
+    );
+    if (loadedResults.some((item) => item.status === "rejected")) {
+      if (jobsNotice) {
+        jobsNotice.textContent = "A completed result could not be loaded. Refresh to try again.";
+      }
+    } else if (jobsNotice) {
+      jobsNotice.textContent = "Jobs update while this page is open.";
+    }
+    renderJobs(recentJobs);
+
+    const benchmarkResults = await fetchJson("/api/benchmark/results");
+    updateSummary(dashboardQueries, dashboardSlowQueries, dashboardRecommendations, benchmarkResults);
+    renderPerformanceChart(benchmarkResults);
+    const hasActiveJobs = recentJobs.some((job) => job.status === "queued" || job.status === "running");
+    if (hasActiveJobs) {
+      scheduleJobPoll();
+    } else {
+      jobPollTimer = null;
+    }
+  } catch (error) {
+    jobPollFailures += 1;
+    if (jobsNotice) {
+      jobsNotice.textContent = "Unable to refresh benchmark job status. Check the API connection.";
+    }
+    if (jobPollFailures < 3) {
+      scheduleJobPoll(5000);
+    } else {
+      jobPollTimer = null;
+    }
+    console.error(error);
+  }
+}
+
+function startJobPolling(delay = 0) {
+  jobPollFailures = 0;
+  scheduleJobPoll(delay);
+}
+
+async function submitBenchmark(recommendationId, button) {
+  button.disabled = true;
+  if (jobsNotice) {
+    jobsNotice.textContent = `Submitting benchmark for ${recommendationId}...`;
+  }
+  try {
+    const response = await fetch(`/api/benchmark/${encodeURIComponent(recommendationId)}?iterations=100`, {
+      method: "POST",
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      const message = body.detail;
+      throw new Error(typeof message === "string" ? message : "The benchmark request was rejected.");
+    }
+    recentJobs = [body, ...recentJobs.filter((job) => job.job_id !== body.job_id)].slice(0, 20);
+    renderJobs(recentJobs);
+    if (jobsNotice) {
+      jobsNotice.textContent = `Queued benchmark job ${body.job_id}.`;
+    }
+    startJobPolling();
+  } catch (error) {
+    if (jobsNotice) {
+      jobsNotice.textContent = error.message || "Unable to submit the benchmark.";
+    }
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function updateSummary(queries, slowQueries, recommendations, benchmarkResults) {
@@ -231,17 +372,24 @@ function renderFrequencyChart(queries) {
 
 async function loadDashboardData() {
   try {
-    const [queries, slowQueries, recommendations, benchmarkResults] = await Promise.all([
+    const [queries, slowQueries, recommendations, benchmarkResults, jobs] = await Promise.all([
       fetchJson("/api/queries"),
       fetchJson("/api/queries/slow"),
       fetchJson("/api/recommendations"),
       fetchJson("/api/benchmark/results"),
+      fetchJson("/api/benchmark/jobs?limit=20"),
     ]);
+    dashboardQueries = queries;
+    dashboardSlowQueries = slowQueries;
+    dashboardRecommendations = recommendations;
+    recentJobs = jobs;
     updateSummary(queries, slowQueries, recommendations, benchmarkResults);
     renderRecommendations(recommendations);
+    renderJobs(jobs);
     renderPerformanceChart(benchmarkResults);
     renderRecommendationChart(recommendations);
     renderFrequencyChart(queries);
+    startJobPolling();
     if (workspaceState) {
       workspaceState.textContent = queries.length || recommendations.length || benchmarkResults.length
         ? "Live data"

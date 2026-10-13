@@ -16,6 +16,7 @@ venv/
 
 # Local database artifacts
 *.log
+runtime/
 
 # Python packaging
 *.egg-info/

@@ -2,8 +2,10 @@ import csv
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from backend.app import app
+from fastapi import HTTPException
 from backend.routes.benchmark import _aggregate_results
 from backend.routes.queries import read_query_logs
 from backend.routes.recommendations import read_recommendations
@@ -19,6 +21,36 @@ class ApiTests(unittest.TestCase):
         self.assertIn("/api/recommendations/{recommendation_id}", paths)
         self.assertIn("/api/benchmark/{recommendation_id}", paths)
         self.assertIn("/api/benchmark/results", paths)
+        self.assertIn("/api/benchmark/jobs", paths)
+        self.assertIn("/api/benchmark/jobs/{job_id}", paths)
+        self.assertIn("/api/benchmark/jobs/{job_id}/result", paths)
+        self.assertIn("/health/live", paths)
+        self.assertIn("/health/ready", paths)
+
+    def test_process_health_endpoints_preserve_original_health_response(self):
+        from backend.app import health, health_live
+
+        self.assertEqual(health(), {"status": "ok"})
+        self.assertEqual(health_live(), {"status": "ok"})
+
+    @patch("backend.app.get_connection")
+    @patch("backend.app.close_connection")
+    def test_ready_health_checks_database_and_closes_connection(self, close, get_connection):
+        from backend.app import health_ready
+
+        cursor = get_connection.return_value.cursor.return_value
+        self.assertEqual(health_ready(), {"status": "ok"})
+        cursor.execute.assert_called_once_with("SELECT 1")
+        close.assert_called_once_with(get_connection.return_value)
+        cursor.close.assert_called_once_with()
+
+    @patch("backend.app.get_connection", side_effect=RuntimeError("unavailable"))
+    def test_ready_health_returns_503_if_database_is_unavailable(self, _get_connection):
+        from backend.app import health_ready
+
+        with self.assertRaises(HTTPException) as error:
+            health_ready()
+        self.assertEqual(error.exception.status_code, 503)
 
     def test_query_and_recommendation_csv_data_is_parsed_for_api(self):
         with tempfile.TemporaryDirectory() as tmpdir:
