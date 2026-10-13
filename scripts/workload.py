@@ -5,14 +5,12 @@ from __future__ import annotations
 
 import argparse
 import csv
-import os
 import random
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
-
-from dotenv import load_dotenv
 
 try:
     import mysql.connector
@@ -23,7 +21,11 @@ except ImportError as exc:  # pragma: no cover - dependency guidance
     ) from exc
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT_DIR / ".env")
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from backend.config import settings
+from backend.database import close_connection, open_connection
 
 QUERY_LIBRARY: List[Dict[str, Any]] = [
     {
@@ -117,22 +119,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def db_config() -> dict:
-    return {
-        "host": os.getenv("DB_HOST", "127.0.0.1"),
-        "port": int(os.getenv("DB_PORT", "3306")),
-        "user": os.getenv("DB_USER", "root"),
-        "password": os.getenv("DB_PASSWORD", ""),
-        "database": os.getenv("DB_NAME", "queryscale"),
-        "charset": os.getenv("DB_CHARSET", "utf8mb4"),
-        "autocommit": True,
-        "raise_on_warnings": True,
-    }
+    return settings.mysql_config()
 
 
 def make_connection() -> mysql.connector.MySQLConnection:
     config = db_config()
     try:
-        return mysql.connector.connect(**config)
+        return open_connection(config)
     except MySQLError as exc:
         raise RuntimeError(
             f"Unable to connect to MySQL at {config['host']}:{config['port']} using database '{config['database']}'. "
@@ -300,8 +293,10 @@ def main() -> None:
 
     try:
         connection = make_connection()
-        summary = execute_batch(connection, args.iterations, args.log_path)
-        connection.close()
+        try:
+            summary = execute_batch(connection, args.iterations, args.log_path)
+        finally:
+            close_connection(connection)
 
         print(f"Executed workload batch: {args.iterations} queries")
         print(f"Query log written to: {args.log_path}")

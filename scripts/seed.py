@@ -4,13 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import os
 import random
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
-
-from dotenv import load_dotenv
 
 try:
     import mysql.connector
@@ -21,7 +19,11 @@ except ImportError as exc:  # pragma: no cover - dependency guidance
     ) from exc
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT_DIR / ".env")
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from backend.config import settings
+from backend.database import close_connection, open_connection
 
 DEFAULT_CONFIG = {
     "branches": 50,
@@ -61,22 +63,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def db_config() -> dict:
-    return {
-        "host": os.getenv("DB_HOST", "127.0.0.1"),
-        "port": int(os.getenv("DB_PORT", "3306")),
-        "user": os.getenv("DB_USER", "root"),
-        "password": os.getenv("DB_PASSWORD", ""),
-        "database": os.getenv("DB_NAME", "queryscale"),
-        "charset": os.getenv("DB_CHARSET", "utf8mb4"),
-        "autocommit": True,
-        "raise_on_warnings": True,
-    }
+    return settings.mysql_config()
 
 
 def make_connection() -> mysql.connector.MySQLConnection:
     config = db_config()
     try:
-        connection = mysql.connector.connect(**config)
+        connection = open_connection(config)
         return connection
     except MySQLError as exc:
         raise RuntimeError(
@@ -226,7 +219,7 @@ def main() -> None:
         raise RuntimeError(f"Synthetic data generation failed: {exc}") from exc
     finally:
         if "connection" in locals():
-            connection.close()
+            close_connection(connection)
 
 
 if __name__ == "__main__":

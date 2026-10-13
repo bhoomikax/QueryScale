@@ -15,6 +15,7 @@ from mysql.connector import MySQLConnection
 from mysql.connector.errors import Error as MySQLError
 
 from backend.config import settings
+from backend.database import close_connection, open_connection
 from backend.services.index_manager import IndexApplication, apply_index
 from scripts.workload import build_query_arguments, build_workload_plan, fetch_id_bounds
 
@@ -81,7 +82,7 @@ def _test_database_config() -> dict[str, object]:
 
 def _connect_to_test_database() -> MySQLConnection:
     try:
-        return mysql.connector.connect(**_test_database_config())
+        return open_connection(_test_database_config())
     except MySQLError as exc:
         raise RuntimeError(
             f"Unable to connect to test database '{settings.db_test_name}'. "
@@ -108,7 +109,7 @@ def _build_replay_plan(iterations: int) -> list[ReplayQuery]:
         ]
     finally:
         cursor.close()
-        connection.close()
+        close_connection(connection)
 
 
 def _execute_replay(plan: Iterable[ReplayQuery]) -> dict[str, list[float]]:
@@ -127,7 +128,7 @@ def _execute_replay(plan: Iterable[ReplayQuery]) -> dict[str, list[float]]:
         raise RuntimeError("Benchmark query execution failed.") from exc
     finally:
         cursor.close()
-        connection.close()
+        close_connection(connection)
 
 
 def _write_results(rows: Sequence[dict[str, object]], output_path: str | Path) -> None:

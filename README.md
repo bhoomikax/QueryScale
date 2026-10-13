@@ -15,6 +15,63 @@ py -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
+The example file contains local-development values only. `DB_TLS_VERIFY` is explicitly
+disabled there to work with the self-signed TLS setup commonly used by local MySQL
+containers. `backend.config.Settings` enables certificate and hostname verification by
+default when that option is omitted. Keep verification enabled for deployed databases;
+set `DB_TLS_CA` to the trusted CA bundle path when the database requires a specific CA.
+
+Connection and read/write timeouts are configurable with `DB_CONNECTION_TIMEOUT`,
+`DB_READ_TIMEOUT`, and `DB_WRITE_TIMEOUT`. The API bind address and port use `API_HOST`
+and `API_PORT` (defaults `0.0.0.0` and `8000`).
+
+## Run the API in Docker
+
+Build the image from the repository root:
+
+```powershell
+docker build -t queryscale:local .
+```
+
+For a MySQL server running on the host, copy `.env.example` to `.env`, set its local
+database name and credentials, and start the API container:
+
+```powershell
+Copy-Item .env.example .env
+docker run --rm --name queryscale-api --env-file .env `
+    -e DB_HOST=host.docker.internal -p 8000:8000 queryscale:local
+```
+
+For MySQL also running in Docker, put both containers on the same user-defined Docker
+network and set `DB_HOST` to the MySQL container name instead. The dashboard is at
+<http://127.0.0.1:8000/dashboard/>. Check process liveness at `/health/live` and database
+readiness at `/health/ready`; the existing `/health` response remains available.
+
+The image includes the repository's current `data/` CSV artifacts as a starting snapshot.
+The benchmark endpoint can write `BENCHMARK_RESULT_PATH` inside the container, but that
+output is ephemeral when the container is removed. Mount a writable volume at the result
+path if you need to keep local Docker benchmark output. This phase does not make the CSV
+persistence distributed or durable.
+
+### CSV persistence work for the asynchronous cloud phase
+
+These CSV paths are environment-configurable but still assume a local filesystem:
+
+- `QUERY_LOG_PATH`: read by `backend/routes/queries.py`, produced by `scripts/workload.py`.
+- `RECOMMENDATION_PATH`: read by `backend/routes/recommendations.py`, produced by the
+  rule-based pipeline (`backend/services/recommender.py`).
+- `BENCHMARK_RESULT_PATH`: read by `backend/routes/benchmark.py` and overwritten by
+  `backend/services/benchmark.py`.
+- Feature and candidate CSVs are intermediate pipeline files in
+  `backend/services/feature_extractor.py`, `candidate_generator.py`, `recommender.py`,
+  `backend/services/cli.py`, and `scripts/run_optimization.py`.
+
+For asynchronous cloud processing, job state and dashboard-visible results must move to
+shared durable storage; report exports can go to S3. Worker inputs and intermediate
+artifacts must not rely on one task's local disk. The API will need to retrieve results
+through that durable store, and the dashboard will need job submission/status behavior.
+Those persistence and async changes are intentionally deferred from this container phase.
+
 ## MySQL setup
 
 The application expects MySQL at `127.0.0.1:3306`. With Docker Desktop, start a local server:

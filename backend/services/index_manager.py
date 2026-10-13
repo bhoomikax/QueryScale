@@ -11,6 +11,7 @@ from mysql.connector import MySQLConnection
 from mysql.connector.errors import Error as MySQLError
 
 from backend.config import settings
+from backend.database import close_connection, open_connection
 from backend.services.test_database import EXPECTED_TABLES, quote_identifier
 
 
@@ -85,7 +86,7 @@ def _test_database_config() -> dict[str, object]:
 
 def _connect_to_test_database() -> MySQLConnection:
     try:
-        return mysql.connector.connect(**_test_database_config())
+        return open_connection(_test_database_config())
     except MySQLError as exc:
         raise RuntimeError(
             f"Unable to connect to test database '{settings.db_test_name}'. "
@@ -123,7 +124,7 @@ def apply_index(candidate_id: str, table: str, columns: str | Sequence[str]) -> 
         raise RuntimeError(f"Unable to apply index candidate {candidate_id!r}.") from exc
     finally:
         cursor.close()
-        connection.close()
+        close_connection(connection)
 
 
 if __name__ == "__main__":

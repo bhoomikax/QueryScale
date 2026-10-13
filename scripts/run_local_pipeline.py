@@ -17,6 +17,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from backend.config import settings
+from backend.database import close_connection, open_connection
 from backend.services.benchmark import run_benchmark
 from backend.services.pipeline import run_pipeline
 from backend.services.test_database import clone_test_database
@@ -44,7 +45,7 @@ def initialize_schema() -> None:
     schema_path = ROOT_DIR / "database" / "schema.sql"
     statements = [statement.strip() for statement in schema_path.read_text(encoding="utf-8").split(";")]
     try:
-        connection = mysql.connector.connect(**_server_config())
+        connection = open_connection(_server_config())
         cursor = connection.cursor()
         for statement in statements:
             if statement:
@@ -56,7 +57,7 @@ def initialize_schema() -> None:
         if "cursor" in locals():
             cursor.close()
         if "connection" in locals():
-            connection.close()
+            close_connection(connection)
 
 
 def seed_source_database(config: dict[str, int]) -> None:
@@ -73,7 +74,7 @@ def seed_source_database(config: dict[str, int]) -> None:
     finally:
         if "cursor" in locals():
             cursor.close()
-        connection.close()
+        close_connection(connection)
 
 
 def run_workload(iterations: int, log_path: Path) -> None:
@@ -88,7 +89,7 @@ def run_workload(iterations: int, log_path: Path) -> None:
     except MySQLError as exc:
         raise RuntimeError("Unable to execute the QueryScale workload.") from exc
     finally:
-        connection.close()
+        close_connection(connection)
 
 
 def run_local_pipeline(
@@ -175,11 +176,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     print(f"Recommendation: {recommendation['candidate_id']}")
     print(f"Benchmark groups: {len(results)}")
-    print(f"Dashboard: http://127.0.0.1:8000/dashboard/")
+    print(f"Dashboard: http://127.0.0.1:{settings.api_port}/dashboard/")
     if args.serve:
         import uvicorn
 
-        uvicorn.run("backend.app:app", host="127.0.0.1", port=8000, reload=False)
+        uvicorn.run("backend.app:app", host=settings.api_host, port=settings.api_port, reload=False)
     return 0
 
 
