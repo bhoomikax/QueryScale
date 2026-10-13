@@ -309,6 +309,10 @@ the default.
 | `scripts/aws/check_health.ps1` | Calls the health, API and dashboard URLs through the ALB and reports ECS service state. |
 | `scripts/aws/teardown.ps1` | Applies the teardown flags, destroys the main stack, leaves the state bucket. |
 | `scripts/aws/post_destroy_check.ps1` | Read-only sweep for snapshots, ENIs, log groups, load balancers and other leftovers. |
+| `scripts/aws/smoke_test.py` | Submits a job through the API, polls to completion, fetches the result and artifact, checks `cleanup_verified`. |
+| `scripts/aws/interruption_test.ps1` | Stops the worker task mid-benchmark and checks redelivery, recovery and index absence. |
+| `scripts/aws/dlq_test.ps1` | Drives a poison message into the dead-letter queue and checks the alarm. |
+| `docs/aws-validation.md` | Compatibility matrix against the application code, acceptance checklist, and a full local rehearsal. |
 
 State files, `backend.hcl`, `*.tfvars` and `.terraform/` are gitignored. Only the
 `.example` inputs and the provider lock files are committed. Database passwords are
@@ -537,7 +541,24 @@ aws logs tail /queryscale/dev/worker --region $region --since 30m
 aws ecs describe-services --region $region --cluster $cluster --services queryscale-dev-api --query "services[0].events[:5]"
 ```
 
-### 7. Operations: alarms, budget, pause versus destroy
+### 7. Validate the deployment
+
+The acceptance gate, the compatibility matrix against the application code, and the
+worker-interruption and dead-letter-queue procedures are in
+[docs/aws-validation.md](docs/aws-validation.md). The short version:
+
+```powershell
+.\scripts\aws\check_health.ps1
+py scripts/aws/smoke_test.py --base-url (terraform -chdir=infra/terraform output -raw api_url)
+.\scripts\aws\interruption_test.ps1
+.\scripts\aws\dlq_test.ps1
+```
+
+The smoke test distinguishes `FAIL` from `PENDING-APP`: the latter marks checks that
+depend on the cloud job adapters not yet in the backend, so a review cannot mistake a
+missing feature for a passing test.
+
+### 8. Operations: alarms, budget, pause versus destroy
 
 **Alarms.** Every alarm notifies the SNS topic in `alarm_topic_arn`; add addresses to
 `alarm_emails` and confirm the subscription email. Names are prefixed `queryscale-dev-`.
