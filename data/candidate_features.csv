@@ -1,9 +1,8 @@
 candidate_id,table,columns,frequency,average_execution_time,where_usage,join_usage,order_usage,table_size,existing_index
-IDX_CUSTOMERS_CUSTOMER_ID,Customers,customer_id,18,0.589,18,18,0,10000,true
-IDX_ACCOUNTS_CUSTOMER_ID,Accounts,customer_id,18,0.589,18,18,0,15000,true
-IDX_TRANSACTIONS_TXN_DATE,Transactions,txn_date,21,0.663,21,0,0,100000,true
-IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE,Transactions,"account_id,txn_date",14,0.677,14,0,14,100000,false
-IDX_TRANSACTIONS_ACCOUNT_ID,Transactions,account_id,23,0.578,23,0,0,100000,true
-IDX_CUSTOMERS_BRANCH_ID,Customers,branch_id,2,0.594,2,0,0,10000,true
-IDX_LOANS_CUSTOMER_ID,Loans,customer_id,19,0.552,19,0,0,5000,true
-IDX_TRANSACTIONS_TXN_DATE_MONTH,Transactions,"txn_date,month",3,0.689,3,0,3,100000,false
+IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE,Transactions,"account_id,txn_date",11,1.468,11,0,11,100000,false
+IDX_TRANSACTIONS_ACCOUNT_ID,Transactions,account_id,21,1.487,21,0,0,100000,true
+IDX_TRANSACTIONS_TXN_DATE,Transactions,txn_date,25,15.813,25,0,0,100000,true
+IDX_LOANS_CUSTOMER_ID,Loans,customer_id,20,1.278,20,0,0,5000,true
+IDX_CUSTOMERS_BRANCH_ID,Customers,branch_id,6,2.733,6,0,0,10000,true
+IDX_CUSTOMERS_CUSTOMER_ID,Customers,customer_id,17,1.314,17,17,0,10000,true
+IDX_ACCOUNTS_CUSTOMER_ID,Accounts,customer_id,17,1.314,17,17,0,15000,true

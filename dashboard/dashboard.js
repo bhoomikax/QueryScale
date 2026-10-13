@@ -95,8 +95,25 @@ function updateSummary(queries, slowQueries, recommendations, benchmarkResults) 
     return;
   }
 
-  const before = benchmarkResults.reduce((sum, row) => sum + Number(row.before_avg_ms || 0), 0) / benchmarkResults.length;
-  const after = benchmarkResults.reduce((sum, row) => sum + Number(row.after_avg_ms || 0), 0) / benchmarkResults.length;
+  const executionCount = benchmarkResults.reduce(
+    (sum, row) => sum + (Number(row.execution_count) || 0),
+    0,
+  );
+  if (!executionCount) {
+    setMetric("before", "--");
+    setMetric("after", "--");
+    setMetric("speedup", "--");
+    setMetric("improvement", "--");
+    return;
+  }
+  const before = benchmarkResults.reduce(
+    (sum, row) => sum + (Number(row.before_avg_ms) || 0) * (Number(row.execution_count) || 0),
+    0,
+  ) / executionCount;
+  const after = benchmarkResults.reduce(
+    (sum, row) => sum + (Number(row.after_avg_ms) || 0) * (Number(row.execution_count) || 0),
+    0,
+  ) / executionCount;
   setMetric("before", before.toFixed(1));
   setMetric("after", after.toFixed(1));
   setMetric("speedup", after ? `${(before / after).toFixed(2)}x` : "--");
