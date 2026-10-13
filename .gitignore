@@ -20,3 +20,18 @@ runtime/
 
 # Python packaging
 *.egg-info/
+
+# Terraform (infra/): never commit state, provider caches, or per-user inputs
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+infra/**/backend.hcl
+infra/**/*.tfvars
+!infra/**/*.tfvars.example
+infra/**/override.tf
+infra/**/override.tf.json
+infra/**/*_override.tf
+infra/**/*_override.tf.json
