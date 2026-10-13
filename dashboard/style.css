@@ -304,6 +304,61 @@ h2 {
   border-bottom: 0;
 }
 
+.benchmark-jobs-panel {
+  min-height: 0;
+  margin-top: 12px;
+}
+
+.jobs-notice {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font: 13px/1.5 Arial, Helvetica, sans-serif;
+}
+
+.benchmark-job-list {
+  display: grid;
+}
+
+.benchmark-job {
+  display: grid;
+  gap: 7px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+}
+
+.benchmark-job:last-child {
+  border-bottom: 0;
+}
+
+.benchmark-job-id,
+.benchmark-job-detail {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.benchmark-job-error {
+  color: var(--accent-dark);
+}
+
+.benchmark-button {
+  justify-self: start;
+  margin-top: 3px;
+  padding: 8px 12px;
+  color: var(--surface);
+  background: var(--ink);
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  font: 12px Arial, Helvetica, sans-serif;
+}
+
+.benchmark-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .recommendation-heading {
   display: flex;
   align-items: center;

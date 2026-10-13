@@ -11,6 +11,11 @@ class ConfigTests(unittest.TestCase):
             "DB_HOST": "db.example.internal",
             "DB_PORT": "3307",
             "DB_NAME": "banking",
+            "DB_TEST_NAME": "banking_test",
+            "DB_USER": "source_reader",
+            "DB_PASSWORD": "source-secret",
+            "DB_TEST_USER": "benchmark_user",
+            "DB_TEST_PASSWORD": "benchmark-secret",
             "DB_CONNECTION_TIMEOUT": "4",
             "DB_READ_TIMEOUT": "12",
             "DB_WRITE_TIMEOUT": "13",
@@ -23,6 +28,7 @@ class ConfigTests(unittest.TestCase):
             settings = Settings()
 
         config = settings.mysql_config()
+        test_config = settings.test_mysql_config()
         self.assertEqual((settings.db_host, settings.db_port, settings.db_name),
                          ("db.example.internal", 3307, "banking"))
         self.assertEqual((settings.api_host, settings.api_port), ("0.0.0.0", 9000))
@@ -33,6 +39,9 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(config["ssl_verify_cert"])
         self.assertTrue(config["ssl_verify_identity"])
         self.assertEqual(config["ssl_ca"], "/run/secrets/rds-ca.pem")
+        self.assertEqual(test_config["database"], "banking_test")
+        self.assertEqual(test_config["user"], "benchmark_user")
+        self.assertEqual(test_config["password"], "benchmark-secret")
 
     def test_tls_verification_defaults_to_enabled(self):
         with patch.dict(os.environ, {}, clear=True):

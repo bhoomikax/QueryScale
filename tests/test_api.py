@@ -21,6 +21,9 @@ class ApiTests(unittest.TestCase):
         self.assertIn("/api/recommendations/{recommendation_id}", paths)
         self.assertIn("/api/benchmark/{recommendation_id}", paths)
         self.assertIn("/api/benchmark/results", paths)
+        self.assertIn("/api/benchmark/jobs", paths)
+        self.assertIn("/api/benchmark/jobs/{job_id}", paths)
+        self.assertIn("/api/benchmark/jobs/{job_id}/result", paths)
         self.assertIn("/health/live", paths)
         self.assertIn("/health/ready", paths)
 

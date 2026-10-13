@@ -53,6 +53,98 @@ output is ephemeral when the container is removed. Mount a writable volume at th
 path if you need to keep local Docker benchmark output. This phase does not make the CSV
 persistence distributed or durable.
 
+## Asynchronous benchmark jobs (Phase 2)
+
+The existing `POST /api/benchmark/{recommendation_id}` now validates the selected
+recommendation and returns `202 Accepted` with a job ID and `queued` status. The local
+SQLite job store records state transitions and structured results. The local queue is
+SQLite-backed, so API and worker processes must use the same `JOB_DATABASE_PATH`. Result
+CSV artifacts are stored under `JOB_ARTIFACT_DIRECTORY` and their local reference is
+included in job status. Keep the `runtime/` directory on persistent shared storage if
+state and artifacts must survive container removal.
+
+### Start locally
+
+Use a disposable local MySQL database containing synthetic QueryScale data. Create or
+refresh `DB_TEST_NAME` once before starting jobs:
+
+```powershell
+py -m backend.services.test_database
+```
+
+**This command drops and recreates only `DB_TEST_NAME` before cloning the configured
+source schema/data. Point `DB_NAME` and `DB_TEST_NAME` only at disposable local databases;
+do not point either at production data.** The API and worker do not invoke this command.
+The worker only creates and removes a validated candidate index in the explicitly
+configured `DB_TEST_NAME` and rejects a test database equal to `DB_NAME`.
+
+Use `DB_USER`/`DB_PASSWORD` for one-time source/test database setup and ordinary API
+database checks. Configure `DB_TEST_USER`/`DB_TEST_PASSWORD` for benchmark connections;
+grant that account only the read and index-management permissions needed on
+`DB_TEST_NAME`. If the test credentials are omitted, they fall back to `DB_USER` for
+backward-compatible local setups, which is broader than the recommended split.
+
+Start the API and worker in separate terminals from the project root:
+
+```powershell
+py -m backend.app
+```
+
+```powershell
+py -m backend.jobs.worker
+```
+
+The first process to use the job store creates the SQLite database and tables. Both
+processes must share the same `JOB_DATABASE_PATH` and `JOB_ARTIFACT_DIRECTORY`; defaults
+are `runtime/queryscale_jobs.sqlite3` and `runtime/job_artifacts`. Set
+`BENCHMARK_JOB_MAX_ITERATIONS`, `BENCHMARK_JOB_TIMEOUT_SECONDS`, and
+`BENCHMARK_JOB_MAX_ATTEMPTS` to bound work and worker-crash retries. The defaults are
+1000 iterations, 900 seconds per job, and three worker attempts.
+
+Open `/dashboard/` and choose **Queue benchmark** on a recommendation. The dashboard
+shows recent job IDs and states, polls at a modest interval while jobs are queued/running,
+and stops after terminal states. It displays the result summary or a safe failure message.
+The API also provides `GET /api/benchmark/jobs`, `GET /api/benchmark/jobs/{job_id}`, and
+`GET /api/benchmark/jobs/{job_id}/result`. The existing
+`GET /api/benchmark/results` continues to include legacy CSV rows and successful job
+measurements.
+
+The local worker takes a kernel-managed file lock beside the SQLite database, so multiple
+worker processes sharing the same local filesystem cannot benchmark the same test DB at
+the same time. A worker timeout exits that worker process; restart the worker to recover
+an interrupted job. If the worker stopped after applying an index, recovery removes only
+that job's deterministic candidate index from `DB_TEST_NAME` before retrying. Repeated
+worker crashes fail the job after the configured attempt limit. This lock is for local
+shared filesystems and is not an ECS or network-wide lock.
+
+### Run API and worker as Docker containers
+
+Build the image as described above, create a named volume, and mount that same volume at
+`/app/runtime` in both containers:
+
+```powershell
+docker volume create queryscale-runtime
+docker run --rm --name queryscale-api --env-file .env `
+    -e DB_HOST=host.docker.internal -p 8000:8000 `
+    --mount source=queryscale-runtime,target=/app/runtime queryscale:local
+```
+
+In another terminal:
+
+```powershell
+docker run --rm --name queryscale-worker --env-file .env `
+    -e DB_HOST=host.docker.internal `
+    --mount source=queryscale-runtime,target=/app/runtime `
+    --entrypoint python queryscale:local -m backend.jobs.worker
+```
+
+If MySQL is another container, put all containers on one user-defined network and set
+`DB_HOST` to the MySQL container name instead. The local SQLite store and file lock need
+a filesystem with working SQLite WAL and OS file-lock semantics; a Docker named volume is
+appropriate for this single-host local workflow. Phase 3 must replace these adapters with
+shared cloud job storage/queue and a lock mechanism that coordinates across ECS tasks;
+local filesystem artifact references must be replaced by S3 object references.
+
 ### CSV persistence work for the asynchronous cloud phase
 
 These CSV paths are environment-configurable but still assume a local filesystem:
@@ -154,7 +246,10 @@ Start the API with `py -m backend.app`. Available endpoints:
 | `GET /api/queries/slow` | Queries above a latency threshold |
 | `GET /api/recommendations` | Generated index recommendations |
 | `GET /api/recommendations/{id}` | One recommendation by candidate ID |
-| `POST /api/benchmark/{id}` | Apply and benchmark a recommendation |
+| `POST /api/benchmark/{id}` | Queue a recommendation benchmark (202 Accepted) |
+| `GET /api/benchmark/jobs` | List recent benchmark jobs |
+| `GET /api/benchmark/jobs/{job_id}` | Get job status |
+| `GET /api/benchmark/jobs/{job_id}/result` | Get a completed benchmark result |
 | `GET /api/benchmark/results` | Persisted benchmark measurements |
 
 The APIs read generated project data and never substitute hardcoded dashboard metrics.

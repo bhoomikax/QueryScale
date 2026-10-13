@@ -75,9 +75,7 @@ def compare_timings(before: Sequence[float], after: Sequence[float]) -> dict[str
 def _test_database_config() -> dict[str, object]:
     if settings.db_name == settings.db_test_name:
         raise ValueError("DB_TEST_NAME must differ from DB_NAME")
-    config = settings.mysql_config()
-    config["database"] = settings.db_test_name
-    return config
+    return settings.test_mysql_config()
 
 
 def _connect_to_test_database() -> MySQLConnection:

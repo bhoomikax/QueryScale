@@ -79,9 +79,7 @@ def build_create_index_sql(index_name: str, table: str, columns: Sequence[str]) 
 def _test_database_config() -> dict[str, object]:
     if settings.db_name == settings.db_test_name:
         raise ValueError("DB_TEST_NAME must differ from DB_NAME")
-    config = settings.mysql_config()
-    config["database"] = settings.db_test_name
-    return config
+    return settings.test_mysql_config()
 
 
 def _connect_to_test_database() -> MySQLConnection:
@@ -104,6 +102,53 @@ def _validate_columns_exist(cursor, table: str, columns: Sequence[str]) -> None:
     missing_columns = [column for column in columns if column not in available_columns]
     if missing_columns:
         raise ValueError(f"Columns do not exist on {table}: {', '.join(missing_columns)}")
+
+
+def candidate_index_exists(candidate_id: str, table: str, columns: str | Sequence[str]) -> bool:
+    """Check only the deterministic candidate index in the configured test database."""
+
+    normalized_columns = validate_candidate(candidate_id, table, columns)
+    index_name = build_index_name(table, normalized_columns)
+    connection = _connect_to_test_database()
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS "
+            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s LIMIT 1",
+            (settings.db_test_name, table, index_name),
+        )
+        return cursor.fetchone() is not None
+    finally:
+        cursor.close()
+        close_connection(connection)
+
+
+def remove_candidate_index(candidate_id: str, table: str, columns: str | Sequence[str]) -> bool:
+    """Remove only a validated candidate index from DB_TEST_NAME, if it exists."""
+
+    normalized_columns = validate_candidate(candidate_id, table, columns)
+    index_name = build_index_name(table, normalized_columns)
+    connection = _connect_to_test_database()
+    cursor = connection.cursor()
+    try:
+        cursor.execute(
+            "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS "
+            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s LIMIT 1",
+            (settings.db_test_name, table, index_name),
+        )
+        if cursor.fetchone() is None:
+            return False
+        cursor.execute(
+            f"DROP INDEX {quote_identifier(index_name)} ON {quote_identifier(table)}"
+        )
+        connection.commit()
+        return True
+    except MySQLError as exc:
+        connection.rollback()
+        raise RuntimeError(f"Unable to clean benchmark index {candidate_id!r} from the test database.") from exc
+    finally:
+        cursor.close()
+        close_connection(connection)
 
 
 def apply_index(candidate_id: str, table: str, columns: str | Sequence[str]) -> IndexApplication:

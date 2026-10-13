@@ -35,6 +35,8 @@ class Settings:
     db_test_name: str = field(default_factory=lambda: os.getenv("DB_TEST_NAME", "queryscale_test"))
     db_user: str = field(default_factory=lambda: os.getenv("DB_USER", "root"))
     db_password: str = field(default_factory=lambda: os.getenv("DB_PASSWORD", ""))
+    db_test_user: str = field(default_factory=lambda: os.getenv("DB_TEST_USER", os.getenv("DB_USER", "root")))
+    db_test_password: str = field(default_factory=lambda: os.getenv("DB_TEST_PASSWORD", os.getenv("DB_PASSWORD", "")))
     db_charset: str = field(default_factory=lambda: os.getenv("DB_CHARSET", "utf8mb4"))
     db_connection_timeout: int = field(default_factory=lambda: int(os.getenv("DB_CONNECTION_TIMEOUT", "10")))
     db_read_timeout: int = field(default_factory=lambda: int(os.getenv("DB_READ_TIMEOUT", "30")))
@@ -46,6 +48,19 @@ class Settings:
     query_log_path: str = field(default_factory=lambda: os.getenv("QUERY_LOG_PATH", "data/query_logs.csv"))
     recommendation_path: str = field(default_factory=lambda: os.getenv("RECOMMENDATION_PATH", "data/recommendations.csv"))
     benchmark_result_path: str = field(default_factory=lambda: os.getenv("BENCHMARK_RESULT_PATH", "data/benchmark_results.csv"))
+    job_database_path: str = field(default_factory=lambda: os.getenv("JOB_DATABASE_PATH", "runtime/queryscale_jobs.sqlite3"))
+    job_artifact_directory: str = field(default_factory=lambda: os.getenv("JOB_ARTIFACT_DIRECTORY", "runtime/job_artifacts"))
+    benchmark_job_max_iterations: int = field(default_factory=lambda: int(os.getenv("BENCHMARK_JOB_MAX_ITERATIONS", "1000")))
+    benchmark_job_timeout_seconds: int = field(default_factory=lambda: int(os.getenv("BENCHMARK_JOB_TIMEOUT_SECONDS", "900")))
+    benchmark_job_max_attempts: int = field(default_factory=lambda: int(os.getenv("BENCHMARK_JOB_MAX_ATTEMPTS", "3")))
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.benchmark_job_max_iterations <= 10_000:
+            raise ValueError("BENCHMARK_JOB_MAX_ITERATIONS must be between 1 and 10000")
+        if not 1 <= self.benchmark_job_timeout_seconds <= 86_400:
+            raise ValueError("BENCHMARK_JOB_TIMEOUT_SECONDS must be between 1 and 86400")
+        if self.benchmark_job_max_attempts < 1:
+            raise ValueError("BENCHMARK_JOB_MAX_ATTEMPTS must be at least 1")
 
     def mysql_config(self) -> dict[str, object]:
         config: dict[str, object] = {
@@ -65,6 +80,15 @@ class Settings:
         }
         if self.db_tls_ca:
             config["ssl_ca"] = self.db_tls_ca
+        return config
+
+    def test_mysql_config(self) -> dict[str, object]:
+        """Build a connection scoped to the explicitly configured benchmark database."""
+
+        config = self.mysql_config()
+        config["database"] = self.db_test_name
+        config["user"] = self.db_test_user
+        config["password"] = self.db_test_password
         return config
 
 
