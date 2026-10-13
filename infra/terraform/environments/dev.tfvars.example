@@ -26,6 +26,31 @@ db_backup_retention_days = 7
 image_tag              = ""
 image_cpu_architecture = "X86_64"
 
+# ECS services. The worker stays at 1 (single benchmark database). Set either to 0 to
+# pause without destroying. Until the shared job-store adapter lands, the worker cannot
+# see API-submitted jobs; it still verifies the image, secrets and database access.
+api_cpu              = 256
+api_memory           = 512
+api_desired_count    = 1
+worker_cpu           = 256
+worker_memory        = 512
+worker_desired_count = 1
+
+# Where tasks run: auto = private subnets with NAT, otherwise public with a public IP.
+ecs_tasks_subnet_tier = "auto"
+
+# HTTPS once you own a domain and an ACM certificate; empty keeps HTTP.
+acm_certificate_arn = ""
+
+# Alarm recipients (each address must confirm the SNS subscription email).
+alarm_emails = []
+
+# Extra non-secret settings for the containers, for the cloud job adapters once they
+# exist (see `terraform output container_environment` for the proposed values).
+api_extra_environment    = {}
+worker_extra_environment = {}
+jobs_db_consumers        = []
+
 # Development teardown behaviour. Defaults refuse to destroy anything that holds
 # data. Flip these on purpose, for a disposable environment only, then apply once
 # BEFORE running terraform destroy (deletion protection is enforced by AWS).

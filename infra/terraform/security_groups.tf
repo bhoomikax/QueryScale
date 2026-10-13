@@ -11,7 +11,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_vpc_security_group_ingress_rule" "alb_in" {
   for_each = {
-    for pair in setproduct(var.alb_ingress_ports, var.alb_allowed_cidrs) :
+    for pair in setproduct(local.alb_ingress_ports, var.alb_allowed_cidrs) :
     "${pair[0]}-${pair[1]}" => { port = pair[0], cidr = pair[1] }
   }
 

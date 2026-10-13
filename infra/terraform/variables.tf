@@ -103,12 +103,6 @@ variable "alb_allow_public_ingress" {
   default     = false
 }
 
-variable "alb_ingress_ports" {
-  description = "Listener ports opened on the ALB security group. Add 443 once an ACM certificate exists."
-  type        = list(number)
-  default     = [80]
-}
-
 # ---------------------------------------------------------------------------
 # Application contract (values taken from the repository, not invented)
 # ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ resource "aws_ecs_cluster" "main" {
 }
 
 locals {
-  bootstrap_enabled = var.image_tag != ""
+  image_available = var.image_tag != ""
 
   # Non-secret settings shared by every container, published for the ECS milestone too.
   container_common_environment = {
@@ -57,7 +57,7 @@ locals {
 }
 
 resource "aws_ecs_task_definition" "bootstrap" {
-  count = local.bootstrap_enabled ? 1 : 0
+  count = local.image_available ? 1 : 0
 
   family                   = "${local.name}-bootstrap"
   requires_compatibilities = ["FARGATE"]

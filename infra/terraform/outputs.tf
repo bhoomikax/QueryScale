@@ -27,13 +27,13 @@ output "security_group_ids" {
 }
 
 output "ecs_task_subnet_ids" {
-  description = "Subnets ECS tasks must use: private when NAT is enabled, otherwise public with a public IP."
-  value       = var.enable_nat_gateway ? aws_subnet.private[*].id : aws_subnet.public[*].id
+  description = "Subnets ECS tasks use (see ecs_tasks_subnet_tier)."
+  value       = local.ecs_task_subnet_ids
 }
 
 output "ecs_task_assign_public_ip" {
-  description = "Whether run-task and services must assign a public IP (true when there is no NAT gateway)."
-  value       = !var.enable_nat_gateway
+  description = "Whether run-task and services assign a public IP (true when tasks run in public subnets)."
+  value       = local.ecs_task_assign_public_ip
 }
 
 # ---------------------------------------------------------------------------
@@ -135,7 +135,38 @@ output "ecs_cluster_name" {
 
 output "bootstrap_task_definition_arn" {
   description = "Task definition for scripts/aws/run_bootstrap_task.ps1. Null until image_tag is set."
-  value       = local.bootstrap_enabled ? aws_ecs_task_definition.bootstrap[0].arn : null
+  value       = local.image_available ? aws_ecs_task_definition.bootstrap[0].arn : null
+}
+
+output "ecs_service_names" {
+  description = "ECS service names for aws ecs commands. Null until image_tag is set."
+  value = {
+    api    = local.image_available ? aws_ecs_service.api[0].name : null
+    worker = local.image_available ? aws_ecs_service.worker[0].name : null
+  }
+}
+
+output "task_definition_arns" {
+  description = "Current task definition revisions, useful as rollback targets. Null until image_tag is set."
+  value = {
+    api    = local.image_available ? aws_ecs_task_definition.api[0].arn : null
+    worker = local.image_available ? aws_ecs_task_definition.worker[0].arn : null
+  }
+}
+
+output "alb_dns_name" {
+  description = "Load balancer host name."
+  value       = aws_lb.api.dns_name
+}
+
+output "api_url" {
+  description = "Base URL of the API and dashboard (append /dashboard/)."
+  value       = local.alb_https_enabled ? "https://${aws_lb.api.dns_name}" : "http://${aws_lb.api.dns_name}"
+}
+
+output "alarm_topic_arn" {
+  description = "SNS topic that receives CloudWatch alarms."
+  value       = aws_sns_topic.alarms.arn
 }
 
 # ---------------------------------------------------------------------------

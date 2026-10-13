@@ -280,13 +280,18 @@ The live pipeline requires MySQL and should be run separately with the complete 
 
 Phase 3 moves the API and worker to ECS Fargate with RDS, SQS, S3, Secrets Manager
 and CloudWatch. The infrastructure lives under `infra/` as Terraform and is applied in
-stages. **Milestones 1 and 2 (this branch)** create the foundation (networking, security
-groups, ECR, the artifact bucket, the job queue and dead-letter queue, secrets, log
-groups, IAM roles, a cost budget) plus a private RDS for MySQL instance, the ECS cluster
-and a one-off database bootstrap task. The API and worker services, the load balancer
-and alarms follow in the next milestone, and the application adapters that use SQS, S3
-and a shared job store are separate work. The local Docker workflow above is unchanged
-and remains the default; the application does not read any AWS setting yet.
+stages: the foundation (networking, security groups, ECR, the artifact bucket, the job
+queue and dead-letter queue, secrets, log groups, IAM roles, a cost budget), a private
+RDS for MySQL instance with a one-off database bootstrap task, and the ECS Fargate API
+and worker services behind an Application Load Balancer with CloudWatch alarms.
+
+The application adapters that use SQS, S3 and a shared job store are separate work and
+are not in the backend yet. Until they land, the deployed API serves the dashboard, the
+query and recommendation endpoints and accepts benchmark jobs into its own task-local
+SQLite store, which the worker task cannot see. The ECS stage is therefore verifiable
+(health, dashboard, secrets, TLS to RDS, worker start-up) but end-to-end benchmarks in
+AWS wait for those adapters. The local Docker workflow above is unchanged and remains
+the default.
 
 ### Layout
 
@@ -300,6 +305,8 @@ and remains the default; the application does not read any AWS setting yet.
 | `scripts/aws_bootstrap.py` | Idempotent database bootstrap, run as the ECS bootstrap task (or locally). |
 | `scripts/aws_db_validate.py` | Post-bootstrap checks: databases, tables, row counts, leftover indexes, grants, TLS. |
 | `scripts/aws/run_bootstrap_task.ps1` | Starts the bootstrap or validation task on ECS and streams its logs. |
+| `scripts/aws/build_push_image.ps1` | Builds the image and pushes it to ECR tagged with the current Git commit. |
+| `scripts/aws/check_health.ps1` | Calls the health, API and dashboard URLs through the ALB and reports ECS service state. |
 
 State files, `backend.hcl`, `*.tfvars` and `.terraform/` are gitignored. Only the
 `.example` inputs and the provider lock files are committed. Database passwords are
@@ -382,18 +389,17 @@ values themselves are never printed.
 
 ### 4. Build and push the image to ECR
 
-The image is the same one used locally. Tag it with the git commit, because the
-repository rejects tag overwrites.
+The image is the same one used locally. It is tagged with the Git commit because the
+repository rejects tag overwrites, so every deployed revision maps to exactly one commit.
 
 ```powershell
-cd infra\terraform
-$region = "us-east-1"                      # same as region in dev.tfvars
-$repo   = terraform output -raw ecr_repository_url
-$tag    = git rev-parse --short HEAD
-aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $repo.Split("/")[0]
-docker build -t "${repo}:${tag}" ..\..
-docker push "${repo}:${tag}"
+.\scripts\aws\build_push_image.ps1                       # linux/amd64, matches image_cpu_architecture = "X86_64"
+.\scripts\aws\build_push_image.ps1 -Platform linux/arm64  # only with image_cpu_architecture = "ARM64"
 ```
+
+The script refuses to build from a dirty working tree (`-AllowDirty` overrides) and
+prints the tag to put into `image_tag`. Rebuilding the same commit needs `-Force`, which
+appends a suffix instead of failing on the immutable tag.
 
 ### 5. Create the database and run the bootstrap task
 
@@ -449,11 +455,93 @@ py -m scripts.aws_db_validate --no-require-tls
 proposed names for the shared job store. They are created and granted now so the
 MySQL-backed job store can use them when it lands; until then nothing reads them.
 
+### 6. Deploy the API and worker services
+
+The API and worker task definitions and services are created by the same apply that
+sets `image_tag` (step 5). Each later deployment is: push a new image, change
+`image_tag`, plan, apply. ECS performs a rolling update with the deployment circuit
+breaker enabled, so a revision whose tasks never pass the health checks is rolled back
+to the previous revision automatically.
+
+```powershell
+.\scripts\aws\build_push_image.ps1
+# edit infra\terraform\environments\dev.tfvars: image_tag = "<printed tag>"
+cd infra\terraform
+terraform plan -var-file=environments/dev.tfvars -out=dev.tfplan
+terraform apply dev.tfplan
+cd ..\..
+.\scripts\aws\check_health.ps1
+```
+
+What the services look like:
+
+| Service | Command | Deployment | Credentials received |
+| --- | --- | --- | --- |
+| `api` | Dockerfile `CMD` (uvicorn on port 8000) | 100% minimum healthy, 200% maximum, ALB health check on `/health/ready`, container health check on `/health/live` | `DB_PASSWORD` of `queryscale_app` |
+| `worker` | `python -m backend.jobs.worker` | 0% minimum healthy, 100% maximum, so the old task stops before the new one starts; 120 s stop timeout | `DB_PASSWORD` and `DB_TEST_PASSWORD` of `queryscale_benchmark` |
+
+The worker settings exist because there is one benchmark database and the worker's lock
+and crash recovery assume a single active process; `worker_desired_count` is capped at 1.
+Neither service can read the RDS master secret. Passwords reach containers only as
+Secrets Manager references resolved by the execution role at start-up; they appear in
+no task-definition environment variable, output or source file.
+
+**Health checks.** `check_health.ps1` runs these and prints the service rollout state:
+
+```powershell
+$url = terraform -chdir=infra/terraform output -raw api_url
+Invoke-WebRequest "$url/health/live"          # process is up
+Invoke-WebRequest "$url/health/ready"         # SELECT 1 against RDS succeeded
+Invoke-WebRequest "$url/api/recommendations"  # CSV data baked into the image
+Start-Process "$url/dashboard/"
+```
+
+**Rollback.** Terraform keeps the previous task definition revisions. To roll back
+without a Terraform change, point the service at an earlier revision; to roll back with
+Terraform, set `image_tag` back to the previous tag and apply.
+
+```powershell
+$cluster = terraform -chdir=infra/terraform output -raw ecs_cluster_name
+$region  = (terraform -chdir=infra/terraform output -json container_environment | ConvertFrom-Json).AWS_REGION
+aws ecs list-task-definitions --region $region --family-prefix queryscale-dev-api --sort DESC
+aws ecs update-service --region $region --cluster $cluster --service queryscale-dev-api --task-definition queryscale-dev-api:<previous revision>
+aws ecs update-service --region $region --cluster $cluster --service queryscale-dev-worker --task-definition queryscale-dev-worker:<previous revision>
+aws ecs wait services-stable --region $region --cluster $cluster --services queryscale-dev-api queryscale-dev-worker
+```
+
+A manual `update-service` drifts from Terraform; the next apply moves the service back
+to the revision in state, so follow up by fixing `image_tag`. To pause everything
+without destroying it, set `api_desired_count` and `worker_desired_count` to 0 and apply.
+
+**Troubleshooting.**
+
+| Symptom | Where to look | Usual cause |
+| --- | --- | --- |
+| `terraform output api_url` works but requests time out | `alb_allowed_cidrs` in `dev.tfvars` | Your current public IP is not allowlisted. |
+| Service events say `CannotPullContainerError` | `aws ecs describe-services` events | `image_tag` does not exist in ECR, wrong `image_cpu_architecture`, or tasks are in private subnets without NAT. |
+| Tasks stop with `ResourceInitializationError: unable to pull secrets` | Same events | Execution role or the secret ARN; tasks in private subnets without NAT cannot reach Secrets Manager. |
+| `/health/live` is 200 but `/health/ready` is 503 and targets flap | `aws logs tail /queryscale/dev/api --follow` | RDS unreachable or TLS failing: check `DB_HOST`, the `rds` security group, and that `DB_TLS_CA` exists in the image. |
+| Deployment rolled back by the circuit breaker | Service events plus the API log group | The new image fails its health check; run it locally with the same environment first. |
+| Worker log shows `candidate_index_exists` | Worker log group | A previous run left its index; run the bootstrap task with `-ScriptArgs "--rebuild-test-db"`. |
+| Alarm `candidate-index-cleanup-failed` fires | Worker log group, then the validation task | Cleanup failed mid-benchmark; rebuild the benchmark database before the next job. |
+| Jobs queued from the dashboard never leave `queued` | Expected for now | The shared job store and queue adapters are not in the backend yet (see the note at the top of this section). |
+| Email alarms never arrive | SNS console | The subscription confirmation email was not accepted. |
+
+Useful log commands:
+
+```powershell
+aws logs tail /queryscale/dev/api --region $region --follow
+aws logs tail /queryscale/dev/worker --region $region --since 30m
+aws ecs describe-services --region $region --cluster $cluster --services queryscale-dev-api --query "services[0].events[:5]"
+```
+
 ### Cost and teardown
 
 The foundation resources cost close to nothing while idle: SQS, S3, Secrets Manager
-(about USD 0.40 per secret per month), CloudWatch log storage and ECR storage. The RDS
-instance is the first real line item: `db.t4g.micro` with 20 GiB gp3 is roughly USD 14
+(about USD 0.40 per secret per month), CloudWatch log storage and ECR storage. The
+running services add roughly USD 9 per month for each 0.25 vCPU / 0.5 GiB Fargate task
+and about USD 17 per month for the load balancer, which bills while it exists even with
+zero tasks. The RDS instance is the next line item: `db.t4g.micro` with 20 GiB gp3 is roughly USD 14
 per month, or free for twelve months in free-tier-eligible accounts. Stop it between
 sessions with `aws rds stop-db-instance` (AWS restarts it after seven days). The NAT
 gateway is off by default (`enable_nat_gateway = false`); turning it on adds roughly
@@ -491,6 +579,13 @@ for good, empty and delete the state bucket by hand; Terraform will not do it.
   parameter group sets `require_secure_transport`. `DB_TLS_VERIFY` stays `true` and
   `DB_TLS_CA` points at the bundled `/app/certs/rds-global-bundle.pem`.
 - Deletion protection and a final snapshot are on by default for the instance.
+- The API and worker task definitions reference only their own user's secret. Passwords
+  never appear in environment variables, outputs or source. The worker task role can
+  reach only the job queue and the artifact prefix; the API task role can only send to
+  the queue and read artifacts.
+- Without a certificate the ALB listener is plain HTTP, so the allowlist in
+  `alb_allowed_cidrs` is the only access control. Set `acm_certificate_arn` once you
+  have a domain; port 80 then redirects to HTTPS.
 
 ## Ownership and future work
 
