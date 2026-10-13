@@ -19,6 +19,8 @@ Files:
 | `cloudwatch.tf` | Log groups with retention |
 | `iam.tf` | Execution roles and least-privilege task roles |
 | `budget.tf` | Monthly budget with email alerts |
+| `rds.tf`, `variables_rds.tf` | Private, encrypted RDS for MySQL with TLS enforced; sizing and teardown variables |
+| `ecs_bootstrap.tf` | ECS cluster and the one-off database bootstrap task definition |
 | `outputs.tf` | Values consumed by later stages and by the application |
 
-Later stages (not yet implemented): RDS, ECS cluster/services, ALB, CloudWatch alarms.
+Later stages (not yet implemented): ECS API and worker services, ALB, CloudWatch alarms.

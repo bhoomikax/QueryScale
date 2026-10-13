@@ -7,3 +7,6 @@ __pycache__/
 .venv/
 venv/
 tests/
+# Terraform never belongs in the image; only infra/certs is copied by the Dockerfile.
+infra/terraform/
+infra/bootstrap/

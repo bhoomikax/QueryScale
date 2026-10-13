@@ -14,8 +14,13 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
 
 COPY backend ./backend
 COPY scripts ./scripts
+COPY database ./database
 COPY dashboard ./dashboard
 COPY --chown=10001:10001 data ./data
+# Amazon RDS certificate authorities so DB_TLS_VERIFY=true works against RDS.
+# Source: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+# Unused locally; point DB_TLS_CA at this path in deployed environments.
+COPY infra/certs/rds-global-bundle.pem ./certs/rds-global-bundle.pem
 
 USER 10001:10001
 EXPOSE 8000

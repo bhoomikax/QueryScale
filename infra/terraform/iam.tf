@@ -1,11 +1,13 @@
 # IAM roles for ECS. Two execution roles (what the ECS agent needs to start a task)
 # and three task roles (what the application code may call at runtime).
 #
-#   execution            pulls the image, writes logs, reads the two app secrets
-#   bootstrap_execution  same, and the RDS stage extends it to read the master secret
+#   execution            pulls the image, writes logs, reads the three app-user secrets
+#   bootstrap_execution  the same, plus the RDS-managed master secret
 #   api_task             sends to the job queue, reads artifacts for presigned downloads
 #   worker_task          receives/deletes queue messages, writes artifacts
 #   bootstrap_task       no AWS API access; it only talks to MySQL over the network
+#
+# The API and worker never get a role that can read the master secret.
 
 data "aws_iam_policy_document" "ecs_tasks_assume" {
   statement {
@@ -66,13 +68,10 @@ data "aws_iam_policy_document" "execution_base" {
   }
 
   statement {
-    sid     = "ReadAppSecrets"
-    effect  = "Allow"
-    actions = ["secretsmanager:GetSecretValue"]
-    resources = [
-      aws_secretsmanager_secret.db_app.arn,
-      aws_secretsmanager_secret.db_benchmark.arn,
-    ]
+    sid       = "ReadAppUserSecrets"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [for secret in aws_secretsmanager_secret.db_user : secret.arn]
   }
 }
 
@@ -89,6 +88,18 @@ resource "aws_iam_role_policy" "execution" {
   policy = data.aws_iam_policy_document.execution_base.json
 }
 
+# Bootstrap execution = base permissions + the RDS-managed master secret.
+data "aws_iam_policy_document" "bootstrap_execution" {
+  source_policy_documents = [data.aws_iam_policy_document.execution_base.json]
+
+  statement {
+    sid       = "ReadRdsMasterSecret"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
+  }
+}
+
 resource "aws_iam_role" "bootstrap_execution" {
   name               = "${local.name}-ecs-bootstrap-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
@@ -99,7 +110,7 @@ resource "aws_iam_role" "bootstrap_execution" {
 resource "aws_iam_role_policy" "bootstrap_execution" {
   name   = "execution"
   role   = aws_iam_role.bootstrap_execution.id
-  policy = data.aws_iam_policy_document.execution_base.json
+  policy = data.aws_iam_policy_document.bootstrap_execution.json
 }
 
 # ---------------------------------------------------------------------------

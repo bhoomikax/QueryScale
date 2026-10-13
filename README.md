@@ -280,12 +280,13 @@ The live pipeline requires MySQL and should be run separately with the complete 
 
 Phase 3 moves the API and worker to ECS Fargate with RDS, SQS, S3, Secrets Manager
 and CloudWatch. The infrastructure lives under `infra/` as Terraform and is applied in
-stages. **Milestone 1 (this branch) creates the foundation only**: networking, security
-groups, ECR, the artifact bucket, the job queue and dead-letter queue, secret containers,
-log groups, IAM roles and a cost budget. RDS, the ECS cluster and services, the load
-balancer and alarms follow in later milestones, and the application adapters that use
-SQS, S3 and a shared job store are separate work. The local Docker workflow above is
-unchanged and remains the default; the application does not read any AWS setting yet.
+stages. **Milestones 1 and 2 (this branch)** create the foundation (networking, security
+groups, ECR, the artifact bucket, the job queue and dead-letter queue, secrets, log
+groups, IAM roles, a cost budget) plus a private RDS for MySQL instance, the ECS cluster
+and a one-off database bootstrap task. The API and worker services, the load balancer
+and alarms follow in the next milestone, and the application adapters that use SQS, S3
+and a shared job store are separate work. The local Docker workflow above is unchanged
+and remains the default; the application does not read any AWS setting yet.
 
 ### Layout
 
@@ -295,6 +296,10 @@ unchanged and remains the default; the application does not read any AWS setting
 | `infra/terraform/` | Main stack. Remote state in the bootstrap bucket with native S3 locking. |
 | `infra/terraform/environments/dev.tfvars.example` | Copy to `dev.tfvars` (gitignored) and edit. |
 | `infra/terraform/backend.hcl.example` | Copy to `backend.hcl` (gitignored) and fill in the bootstrap outputs. |
+| `infra/certs/rds-global-bundle.pem` | Amazon RDS certificate authorities, copied into the image at `/app/certs/` so `DB_TLS_VERIFY=true` works against RDS. |
+| `scripts/aws_bootstrap.py` | Idempotent database bootstrap, run as the ECS bootstrap task (or locally). |
+| `scripts/aws_db_validate.py` | Post-bootstrap checks: databases, tables, row counts, leftover indexes, grants, TLS. |
+| `scripts/aws/run_bootstrap_task.ps1` | Starts the bootstrap or validation task on ECS and streams its logs. |
 
 State files, `backend.hcl`, `*.tfvars` and `.terraform/` are gitignored. Only the
 `.example` inputs and the provider lock files are committed. Database passwords are
@@ -390,10 +395,67 @@ docker build -t "${repo}:${tag}" ..\..
 docker push "${repo}:${tag}"
 ```
 
+### 5. Create the database and run the bootstrap task
+
+Set `image_tag` in `environments/dev.tfvars` to the tag you just pushed, then apply
+again. This creates the bootstrap task definition (it is skipped while `image_tag` is
+empty). The RDS instance itself is created on the first apply and takes about ten
+minutes.
+
+```powershell
+terraform plan -var-file=environments/dev.tfvars -out=dev.tfplan
+terraform apply dev.tfplan
+cd ..\..
+.\scripts\aws\run_bootstrap_task.ps1
+.\scripts\aws\run_bootstrap_task.ps1 -Mode validate
+```
+
+The bootstrap task is the only process that ever receives the RDS master credential.
+It creates three databases and three users on the instance and then stops:
+
+| Database | Variable | User | Grants |
+| --- | --- | --- | --- |
+| `queryscale` | `DB_NAME` | `queryscale_app` (`DB_USER`) | `SELECT` |
+| `queryscale_test` | `DB_TEST_NAME` | `queryscale_benchmark` (`DB_TEST_USER`) | `SELECT, INDEX` |
+| `queryscale_jobs` | `DB_JOBS_NAME` | `queryscale_jobs` (`DB_JOBS_USER`) | `SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX` |
+
+Every user requires TLS, and the server enforces `require_secure_transport`. The
+bootstrap is idempotent: it loads `database/schema.sql` only when the source database
+has none of the five tables, seeds synthetic data only when every table is empty, and
+clones the benchmark database only when it is missing or incomplete. It never drops the
+source or jobs database. The explicit, destructive overrides are `--reinitialize-schema`,
+`--reseed` and `--rebuild-test-db`, passed through `-ScriptArgs`:
+
+```powershell
+.\scripts\aws\run_bootstrap_task.ps1 -ScriptArgs "--rebuild-test-db"
+.\scripts\aws\run_bootstrap_task.ps1 -ScriptArgs "--customers","1000","--transactions","5000"
+```
+
+Rebuild the benchmark database whenever a job fails with `candidate_index_exists`. The
+validation task reports a leftover candidate index as a failure for exactly that reason.
+
+Both scripts also run against the local MySQL container, using `DB_USER` as the
+administrative account and `BOOTSTRAP_REQUIRE_TLS=false` because local MySQL has no
+trusted certificate:
+
+```powershell
+$env:BOOTSTRAP_REQUIRE_TLS = "false"
+$env:DB_APP_PASSWORD = "..."; $env:DB_BENCHMARK_PASSWORD = "..."; $env:DB_JOBS_PASSWORD = "..."
+py -m scripts.aws_bootstrap --customers 100 --accounts 150 --transactions 500 --loans 50
+py -m scripts.aws_db_validate --no-require-tls
+```
+
+**Interface dependency.** `DB_JOBS_NAME`, `DB_JOBS_USER` and `DB_JOBS_PASSWORD` are the
+proposed names for the shared job store. They are created and granted now so the
+MySQL-backed job store can use them when it lands; until then nothing reads them.
+
 ### Cost and teardown
 
-The milestone 1 resources cost close to nothing while idle: SQS, S3, Secrets Manager
-(about USD 0.40 per secret per month), CloudWatch log storage and ECR storage. The NAT
+The foundation resources cost close to nothing while idle: SQS, S3, Secrets Manager
+(about USD 0.40 per secret per month), CloudWatch log storage and ECR storage. The RDS
+instance is the first real line item: `db.t4g.micro` with 20 GiB gp3 is roughly USD 14
+per month, or free for twelve months in free-tier-eligible accounts. Stop it between
+sessions with `aws rds stop-db-instance` (AWS restarts it after seven days). The NAT
 gateway is off by default (`enable_nat_gateway = false`); turning it on adds roughly
 USD 33 per month. The budget sends email alerts at the configured thresholds.
 
@@ -404,9 +466,13 @@ hold data. For a disposable development environment set these in `dev.tfvars` fi
 artifact_bucket_force_destroy = true   # delete the artifact bucket with its objects
 ecr_force_delete              = true   # delete the ECR repository with its images
 secret_recovery_window_days   = 0      # delete secrets immediately instead of after 7 days
+db_deletion_protection        = false  # AWS refuses to delete the instance until this is applied
+db_skip_final_snapshot        = true   # otherwise a final snapshot is kept (and billed)
 ```
 
-Then run `terraform destroy -var-file=environments/dev.tfvars`. Budget email
+Apply once so the RDS flags take effect, then run
+`terraform destroy -var-file=environments/dev.tfvars`. Automated RDS backups are
+removed with the instance; manual snapshots and any final snapshot are not. Budget email
 notifications are removed with the budget. Finally, if the environment is being retired
 for good, empty and delete the state bucket by hand; Terraform will not do it.
 
@@ -418,10 +484,13 @@ for good, empty and delete the state bucket by hand; Terraform will not do it.
   worker may only receive, delete and write artifacts; the bootstrap task has no AWS API
   access at all. Execution roles may read only the two application secrets.
 - Buckets block public access, require TLS and encrypted uploads. Queues require TLS.
-- The RDS master credential is not created here. The RDS milestone will have RDS manage
-  it and grant read access only to the bootstrap execution role.
-- `DB_TLS_VERIFY` stays `true` in the cloud. The Dockerfile does not yet ship the Amazon
-  RDS CA bundle; that change belongs with the RDS milestone.
+- RDS manages the master credential in Secrets Manager. Only the bootstrap execution
+  role may read it; the API and worker roles cannot, and their task definitions never
+  reference it.
+- RDS is in the private subnets, not publicly accessible, encrypted at rest, and its
+  parameter group sets `require_secure_transport`. `DB_TLS_VERIFY` stays `true` and
+  `DB_TLS_CA` points at the bundled `/app/certs/rds-global-bundle.pem`.
+- Deletion protection and a final snapshot are on by default for the instance.
 
 ## Ownership and future work
 
@@ -464,6 +533,7 @@ QueryScale/
 │   └── schema.sql
 ├── infra/
 │   ├── bootstrap/
+│   ├── certs/
 │   └── terraform/
 ├── scripts/
 │   ├── run_local_pipeline.py
