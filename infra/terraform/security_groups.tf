@@ -50,6 +50,8 @@ resource "aws_vpc_security_group_ingress_rule" "tasks_from_alb" {
 }
 
 # Tasks need outbound HTTPS for ECR, SQS, Secrets Manager and CloudWatch, plus MySQL to RDS.
+# The 0.0.0.0/0 destination (trivy AWS-0104) is what makes the no-NAT layout work; replacing
+# it with interface endpoints adds about USD 7 per endpoint per month.
 resource "aws_vpc_security_group_egress_rule" "tasks_https_out" {
   security_group_id = aws_security_group.ecs_tasks.id
   description       = "AWS service APIs and image pulls"

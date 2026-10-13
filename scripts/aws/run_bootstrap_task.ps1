@@ -54,13 +54,18 @@ if (-not $taskDef) {
 
 $module = if ($Mode -eq "validate") { "scripts.aws_db_validate" } else { "scripts.aws_bootstrap" }
 $command = @("python", "-m", $module) + $ScriptArgs
-$overrides = @{ containerOverrides = @(@{ name = "bootstrap"; command = $command }) } | ConvertTo-Json -Depth 5 -Compress
+$overridesJson = @{ containerOverrides = @(@{ name = "bootstrap"; command = $command }) } | ConvertTo-Json -Depth 5 -Compress
+# JSON goes through a file: Windows PowerShell 5.1 mangles embedded quotes passed to native commands.
+$overridesFile = Join-Path ([System.IO.Path]::GetTempPath()) ("queryscale-overrides-" + [guid]::NewGuid().ToString("N") + ".json")
+[System.IO.File]::WriteAllText($overridesFile, $overridesJson)
+$overrides = "file://" + ($overridesFile -replace "\\", "/")
 $assign = if ($publicIp) { "ENABLED" } else { "DISABLED" }
 $network = "awsvpcConfiguration={subnets=[$($subnets -join ',')],securityGroups=[$($sgIds.ecs_tasks)],assignPublicIp=$assign}"
 
 Write-Host "Starting $Mode task on cluster $cluster ($region)..."
 $started = aws ecs run-task --region $region --cluster $cluster --launch-type FARGATE `
     --task-definition $taskDef --network-configuration $network --overrides $overrides --output json | ConvertFrom-Json
+Remove-Item -ErrorAction SilentlyContinue $overridesFile
 if ($LASTEXITCODE -ne 0 -or -not $started.tasks) {
     Write-Error ("run-task failed: " + ($started.failures | ConvertTo-Json -Compress))
     exit 1

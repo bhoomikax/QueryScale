@@ -63,7 +63,6 @@ do {
 } while ($state.status -eq "queued" -and (Get-Date) -lt $deadline)
 if ($state.status -ne "running") {
     Record "job claimed by worker" "PENDING-APP" "status is '$($state.status)' after 10 minutes. The worker cannot see API-submitted jobs until the shared job store and SQS adapters are deployed."
-    $results | ConvertTo-Json | Out-Null
     exit 1
 }
 Record "job claimed by worker" "PASS" "running, attempts=$($state.attempts)"

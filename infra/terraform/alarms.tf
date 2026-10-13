@@ -15,6 +15,9 @@
 #   worker-not-running            AWS/ECS CPUUtilization missing for 10 minutes (no Insights)
 #   candidate-index-cleanup-failed  worker log line from backend/jobs/worker.py
 
+# Not encrypted on purpose (trivy AWS-0095): CloudWatch alarms cannot publish to a topic
+# encrypted with the AWS-managed SNS key, and a customer-managed key costs about USD 1
+# per month. The topic carries alarm names and descriptions only, never data or secrets.
 resource "aws_sns_topic" "alarms" {
   name = "${local.name}-alarms"
 

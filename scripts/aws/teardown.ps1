@@ -70,7 +70,7 @@ terraform -chdir="$TerraformDir" plan -var-file="$VarFile" @teardownVars -out=te
 if ($LASTEXITCODE -ne 0) { throw "plan failed" }
 
 Write-Host "== Step 2/2: plan the destroy"
-terraform -chdir="$TerraformDir" plan -destroy -var-file="$VarFile" @teardownVars -out=teardown-destroy.tfplan
+terraform -chdir="$TerraformDir" plan -destroy -var-file="$VarFile" @teardownVars
 if ($LASTEXITCODE -ne 0) { throw "destroy plan failed" }
 
 if ($PlanOnly) {
@@ -87,7 +87,7 @@ Write-Host "`n== Applying teardown flags (removes RDS deletion protection, scale
 terraform -chdir="$TerraformDir" apply teardown-flags.tfplan
 if ($LASTEXITCODE -ne 0) { throw "apply of teardown flags failed; the stack is unchanged apart from what the plan showed" }
 
-# The saved destroy plan predates the flag apply; re-plan so the destroy sees the new state.
+# Destroy re-plans against the state the flag apply just produced.
 Write-Host "`n== Destroying"
 terraform -chdir="$TerraformDir" destroy -var-file="$VarFile" @teardownVars -auto-approve
 if ($LASTEXITCODE -ne 0) {
@@ -95,7 +95,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Remove-Item -ErrorAction SilentlyContinue (Join-Path $TerraformDir "teardown-flags.tfplan"), (Join-Path $TerraformDir "teardown-destroy.tfplan")
+Remove-Item -ErrorAction SilentlyContinue (Join-Path $TerraformDir "teardown-flags.tfplan")
 
 Write-Host ""
 Write-Host "Main stack destroyed. Next:"

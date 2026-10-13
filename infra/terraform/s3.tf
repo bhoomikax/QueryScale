@@ -28,6 +28,9 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
   restrict_public_buckets = true
 }
 
+# SSE-S3 rather than a customer-managed KMS key (trivy AWS-0132): the artifacts are
+# synthetic benchmark timings, and a CMK would add a monthly key charge plus per-request
+# KMS calls for every worker upload and presigned download.
 resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
 

@@ -36,7 +36,6 @@ function Get-TfOutput {
 $queueUrl = Get-TfOutput job_queue_url
 $dlqUrl   = Get-TfOutput job_dlq_url
 $region   = (Get-TfOutput container_environment).AWS_REGION
-$env      = (Get-TfOutput database_names) | Out-Null
 $prefix   = ($queueUrl.Split("/")[-1] -replace "-benchmark-jobs\.fifo$", "")
 
 $attrs = (aws sqs get-queue-attributes --region $region --queue-url $queueUrl --attribute-names RedrivePolicy VisibilityTimeout --output json | ConvertFrom-Json).Attributes
@@ -45,9 +44,14 @@ Write-Host "Queue $queueUrl"
 Write-Host "  maxReceiveCount=$maxReceive visibilityTimeout=$($attrs.VisibilityTimeout)s"
 
 $unknownJob = "00000000-0000-4000-8000-" + (Get-Date -Format "HHmmssffff").PadLeft(12, "0")
-$body = (@{ job_id = $unknownJob } | ConvertTo-Json -Compress)
+# The body is JSON; pass it through a file because Windows PowerShell 5.1 mangles embedded quotes.
+$bodyFile = Join-Path ([System.IO.Path]::GetTempPath()) ("queryscale-dlq-" + [guid]::NewGuid().ToString("N") + ".json")
+[System.IO.File]::WriteAllText($bodyFile, (@{ job_id = $unknownJob } | ConvertTo-Json -Compress))
 Write-Host "== 1. Send poison message for job $unknownJob"
-aws sqs send-message --region $region --queue-url $queueUrl --message-body $body --message-group-id benchmark --message-deduplication-id $unknownJob --output json | Out-Null
+aws sqs send-message --region $region --queue-url $queueUrl --message-body ("file://" + ($bodyFile -replace "\\", "/")) --message-group-id benchmark --message-deduplication-id $unknownJob --output json | Out-Null
+$sendExit = $LASTEXITCODE
+Remove-Item -ErrorAction SilentlyContinue $bodyFile
+if ($sendExit -ne 0) { throw "send-message failed" }
 
 Write-Host "== 2. Receive it $($maxReceive + 1) times with a 1 s visibility timeout"
 $receipts = 0

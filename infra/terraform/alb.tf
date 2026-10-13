@@ -1,5 +1,8 @@
 # Application Load Balancer in front of the API service.
 #
+# Internet-facing (trivy AWS-0053) but reachable only from alb_allowed_cidrs, and HTTP
+# only (trivy AWS-0054) until acm_certificate_arn is set, because no domain exists yet.
+#
 # Ingress is limited by the alb security group to alb_allowed_cidrs. The listener is
 # HTTP until acm_certificate_arn is set, after which port 80 redirects to HTTPS.
 # Health checks hit /health/ready (backend/app.py), which runs SELECT 1 against RDS,

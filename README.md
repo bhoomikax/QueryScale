@@ -671,6 +671,11 @@ Delete the state bucket last and by hand, only when the environment is retired f
 - Without a certificate the ALB listener is plain HTTP, so the allowlist in
   `alb_allowed_cidrs` is the only access control. Set `acm_certificate_arn` once you
   have a domain; port 80 then redirects to HTTPS.
+- A `trivy config` scan of `infra/` reports five findings that are accepted on purpose
+  and explained in comments beside the resources: the internet-facing ALB and its HTTP
+  listener (above), the tasks' outbound HTTPS to any address (no NAT or endpoints),
+  SSE-S3 instead of a customer-managed key on the artifact bucket, and the unencrypted
+  alarm topic (CloudWatch alarms cannot publish to a topic using the AWS-managed key).
 
 ## Ownership and future work
 
