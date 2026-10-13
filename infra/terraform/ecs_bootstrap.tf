@@ -64,7 +64,7 @@ resource "aws_ecs_task_definition" "bootstrap" {
   network_mode             = "awsvpc"
   cpu                      = tostring(var.bootstrap_task_cpu)
   memory                   = tostring(var.bootstrap_task_memory)
-  execution_role_arn       = aws_iam_role.bootstrap_execution.arn
+  execution_role_arn       = local.bootstrap_execution_role_arn
   task_role_arn            = aws_iam_role.bootstrap_task.arn
 
   runtime_platform {

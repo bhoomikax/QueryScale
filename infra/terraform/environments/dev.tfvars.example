@@ -11,8 +11,10 @@ alb_allowed_cidrs = ["203.0.113.10/32"]
 
 # Cost posture for a development account.
 enable_nat_gateway       = false
-budget_monthly_limit_usd = 50
-budget_alert_emails      = ["you@example.com"]
+budget_monthly_limit_usd  = 50
+budget_alert_emails       = ["you@example.com"]
+budget_alert_absolute_usd = [25]   # extra email at this many dollars of actual spend
+# Budgets only notify. Nothing stops billing except pausing or destroying resources.
 
 # Database sizing. db.t4g.micro + 20 GiB gp3 is the smallest supported footprint.
 db_instance_class        = "db.t4g.micro"
@@ -44,6 +46,10 @@ acm_certificate_arn = ""
 
 # Alarm recipients (each address must confirm the SNS subscription email).
 alarm_emails = []
+
+# Container Insights gives exact RunningTaskCount alarms for both services at extra
+# CloudWatch cost; off uses a free proxy alarm for the worker (see alarms.tf).
+ecs_container_insights = false
 
 # Extra non-secret settings for the containers, for the cloud job adapters once they
 # exist (see `terraform output container_environment` for the proposed values).

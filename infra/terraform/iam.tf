@@ -1,13 +1,17 @@
-# IAM roles for ECS. Two execution roles (what the ECS agent needs to start a task)
-# and three task roles (what the application code may call at runtime).
+# IAM roles for ECS. One execution role per task kind (what the ECS agent needs to
+# start that task) and one task role per task kind (what the code may call at runtime).
 #
-#   execution            pulls the image, writes logs, reads the three app-user secrets
-#   bootstrap_execution  the same, plus the RDS-managed master secret
+#   api_execution        pulls the image, writes the api log group, reads the app secret
+#   worker_execution     pulls the image, writes the worker log group, reads the benchmark secret
+#   bootstrap_execution  pulls the image, writes the bootstrap log group, reads every app
+#                        secret and the RDS-managed master secret
 #   api_task             sends to the job queue, reads artifacts for presigned downloads
 #   worker_task          receives/deletes queue messages, writes artifacts
 #   bootstrap_task       no AWS API access; it only talks to MySQL over the network
 #
-# The API and worker never get a role that can read the master secret.
+# Each execution role can read exactly the secrets its task definition references, and
+# only the bootstrap execution role can read the master secret. The jobs-database secret
+# is added to the api/worker execution roles only when jobs_db_consumers names them.
 
 data "aws_iam_policy_document" "ecs_tasks_assume" {
   statement {
@@ -38,7 +42,35 @@ data "aws_iam_policy_document" "ecs_tasks_assume" {
 # Execution roles
 # ---------------------------------------------------------------------------
 
-data "aws_iam_policy_document" "execution_base" {
+locals {
+  execution_roles = {
+    api = {
+      log_group = aws_cloudwatch_log_group.app["api"].arn
+      secrets = concat(
+        [local.secret_db_app.arn],
+        contains(var.jobs_db_consumers, "api") ? [local.secret_db_jobs.arn] : [],
+      )
+    }
+    worker = {
+      log_group = aws_cloudwatch_log_group.app["worker"].arn
+      secrets = concat(
+        [local.secret_db_benchmark.arn],
+        contains(var.jobs_db_consumers, "worker") ? [local.secret_db_jobs.arn] : [],
+      )
+    }
+    bootstrap = {
+      log_group = aws_cloudwatch_log_group.app["bootstrap"].arn
+      secrets = concat(
+        [for secret in aws_secretsmanager_secret.db_user : secret.arn],
+        [aws_db_instance.main.master_user_secret[0].secret_arn],
+      )
+    }
+  }
+}
+
+data "aws_iam_policy_document" "execution" {
+  for_each = local.execution_roles
+
   statement {
     sid       = "EcrAuth"
     effect    = "Allow"
@@ -58,59 +90,45 @@ data "aws_iam_policy_document" "execution_base" {
   }
 
   statement {
-    sid    = "WriteLogs"
+    sid    = "WriteOwnLogGroup"
     effect = "Allow"
     actions = [
       "logs:CreateLogStream",
       "logs:PutLogEvents",
     ]
-    resources = [for group in aws_cloudwatch_log_group.app : "${group.arn}:*"]
+    resources = ["${each.value.log_group}:*"]
   }
 
   statement {
-    sid       = "ReadAppUserSecrets"
+    sid       = "ReadReferencedSecrets"
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [for secret in aws_secretsmanager_secret.db_user : secret.arn]
+    resources = each.value.secrets
   }
 }
 
 resource "aws_iam_role" "execution" {
-  name               = "${local.name}-ecs-execution"
+  for_each = local.execution_roles
+
+  name               = "${local.name}-ecs-${each.key}-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
 
-  tags = { Name = "${local.name}-ecs-execution" }
+  tags = { Name = "${local.name}-ecs-${each.key}-execution" }
 }
 
 resource "aws_iam_role_policy" "execution" {
+  for_each = local.execution_roles
+
   name   = "execution"
-  role   = aws_iam_role.execution.id
-  policy = data.aws_iam_policy_document.execution_base.json
+  role   = aws_iam_role.execution[each.key].id
+  policy = data.aws_iam_policy_document.execution[each.key].json
 }
 
-# Bootstrap execution = base permissions + the RDS-managed master secret.
-data "aws_iam_policy_document" "bootstrap_execution" {
-  source_policy_documents = [data.aws_iam_policy_document.execution_base.json]
-
-  statement {
-    sid       = "ReadRdsMasterSecret"
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
-  }
-}
-
-resource "aws_iam_role" "bootstrap_execution" {
-  name               = "${local.name}-ecs-bootstrap-execution"
-  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
-
-  tags = { Name = "${local.name}-ecs-bootstrap-execution" }
-}
-
-resource "aws_iam_role_policy" "bootstrap_execution" {
-  name   = "execution"
-  role   = aws_iam_role.bootstrap_execution.id
-  policy = data.aws_iam_policy_document.bootstrap_execution.json
+# Stable aliases used by the task definitions and outputs.
+locals {
+  api_execution_role_arn       = aws_iam_role.execution["api"].arn
+  worker_execution_role_arn    = aws_iam_role.execution["worker"].arn
+  bootstrap_execution_role_arn = aws_iam_role.execution["bootstrap"].arn
 }
 
 # ---------------------------------------------------------------------------

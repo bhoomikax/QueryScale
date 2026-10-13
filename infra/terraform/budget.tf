@@ -1,6 +1,11 @@
-# Account-wide monthly cost budget. It is deliberately not filtered by tag: a tag
-# filter only works after the tag is activated as a cost allocation tag in Billing,
-# and until then a filtered budget silently reports zero spend.
+# Account-wide monthly cost budget with email notifications.
+#
+# A budget only NOTIFIES. It does not stop, pause or cap anything; charges continue
+# until resources are paused or destroyed (see the README's "Pause versus destroy").
+#
+# The budget is deliberately not filtered by tag: a tag filter only works after the tag
+# is activated as a cost allocation tag in Billing, and until then a filtered budget
+# silently reports zero spend.
 
 resource "aws_budgets_budget" "monthly" {
   name         = "${local.name}-monthly"
@@ -9,6 +14,7 @@ resource "aws_budgets_budget" "monthly" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
+  # Percent-of-limit thresholds on actual spend.
   dynamic "notification" {
     for_each = toset(var.budget_alert_thresholds_percent)
 
@@ -21,6 +27,20 @@ resource "aws_budgets_budget" "monthly" {
     }
   }
 
+  # Absolute dollar thresholds on actual spend.
+  dynamic "notification" {
+    for_each = toset(var.budget_alert_absolute_usd)
+
+    content {
+      comparison_operator        = "GREATER_THAN"
+      threshold                  = notification.value
+      threshold_type             = "ABSOLUTE_VALUE"
+      notification_type          = "ACTUAL"
+      subscriber_email_addresses = var.budget_alert_emails
+    }
+  }
+
+  # Forecast: AWS projects the month will exceed this percent of the limit.
   dynamic "notification" {
     for_each = var.budget_forecast_threshold_percent > 0 ? [var.budget_forecast_threshold_percent] : []
 

@@ -23,7 +23,7 @@ Files:
 | `ecs_bootstrap.tf` | ECS cluster and the one-off database bootstrap task definition |
 | `ecs_services.tf`, `variables_ecs.tf` | API and worker task definitions and services with circuit-breaker rollback |
 | `alb.tf` | Load balancer, target group on /health/ready, HTTP (and HTTPS with a certificate) listeners |
-| `alarms.tf` | SNS topic and CloudWatch alarms for queue, ALB, RDS and benchmark cleanup failures |
+| `alarms.tf`, `variables_ops.tf` | SNS topic and CloudWatch alarms for queue, ALB, ECS task counts, RDS and benchmark cleanup failures |
 | `outputs.tf` | Values consumed by later stages and by the application |
 
 All planned stages are implemented. The cloud job adapters in the application are separate work.

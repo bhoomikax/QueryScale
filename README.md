@@ -307,6 +307,8 @@ the default.
 | `scripts/aws/run_bootstrap_task.ps1` | Starts the bootstrap or validation task on ECS and streams its logs. |
 | `scripts/aws/build_push_image.ps1` | Builds the image and pushes it to ECR tagged with the current Git commit. |
 | `scripts/aws/check_health.ps1` | Calls the health, API and dashboard URLs through the ALB and reports ECS service state. |
+| `scripts/aws/teardown.ps1` | Applies the teardown flags, destroys the main stack, leaves the state bucket. |
+| `scripts/aws/post_destroy_check.ps1` | Read-only sweep for snapshots, ENIs, log groups, load balancers and other leftovers. |
 
 State files, `backend.hcl`, `*.tfvars` and `.terraform/` are gitignored. Only the
 `.example` inputs and the provider lock files are committed. Database passwords are
@@ -535,20 +537,74 @@ aws logs tail /queryscale/dev/worker --region $region --since 30m
 aws ecs describe-services --region $region --cluster $cluster --services queryscale-dev-api --query "services[0].events[:5]"
 ```
 
+### 7. Operations: alarms, budget, pause versus destroy
+
+**Alarms.** Every alarm notifies the SNS topic in `alarm_topic_arn`; add addresses to
+`alarm_emails` and confirm the subscription email. Names are prefixed `queryscale-dev-`.
+
+| Alarm | Source | Meaning |
+| --- | --- | --- |
+| `dlq-has-messages` | SQS dead-letter queue visible messages > 0 | A job message was received more than `BENCHMARK_JOB_MAX_ATTEMPTS + 1` times. |
+| `job-queue-stalled` | SQS oldest message age > `alarm_queue_age_seconds` | Nothing is consuming the queue. |
+| `api-5xx` | ALB target plus load-balancer 5xx > `alarm_alb_5xx_threshold` in 5 min | The API is erroring. |
+| `api-no-healthy-targets` | ALB healthy host count < 1 for 3 min | No API task passes `/health/ready`. |
+| `api-unhealthy-targets` | ALB unhealthy host count > 0 for 5 min | At least one API task is failing readiness. |
+| `api-tasks-below-desired`, `worker-tasks-below-desired` | ECS `RunningTaskCount` < desired, only with `ecs_container_insights = true` | A service cannot keep its tasks running. |
+| `worker-not-running` | No `AWS/ECS` CPU samples for 10 min, only without Container Insights | Free proxy for the worker count. |
+| `rds-cpu-high` | RDS CPU > 80% for 15 min | Benchmark load or a runaway query. |
+| `rds-storage-low` | RDS free storage < `alarm_rds_free_storage_bytes` | Raise `db_allocated_storage` or enable autoscaling. |
+| `candidate-index-cleanup-failed` | Worker log line `Candidate-index cleanup failed for job <id>` from `backend/jobs/worker.py` | The benchmark database may hold a stray index; rebuild it before the next job. |
+
+The cleanup filter matches the exact message already logged by the Phase 2 worker. If
+that text changes in `backend/jobs/worker.py`, the pattern in `infra/terraform/alarms.tf`
+must change with it.
+
+**Budget.** `budget_monthly_limit_usd` with percent thresholds in
+`budget_alert_thresholds_percent`, absolute dollar thresholds in
+`budget_alert_absolute_usd`, and a forecast alert. A budget only sends email. It does not
+cap spending, stop tasks, or delete anything; the only ways to stop charges are to pause
+or destroy resources as described next.
+
+**Pause versus destroy.**
+
+| | Pause | Destroy |
+| --- | --- | --- |
+| How | `api_desired_count = 0`, `worker_desired_count = 0`, apply; then `aws rds stop-db-instance --db-instance-identifier queryscale-dev-mysql` | `.\scripts\aws\teardown.ps1 -Environment dev` |
+| Keeps | Everything: data, images, secrets, state, URLs | Only the Terraform state bucket and, by default, a final RDS snapshot |
+| Still bills | Load balancer (about USD 17/month), RDS storage, NAT gateway if enabled, S3, ECR, secrets, log storage | Final snapshot storage until you delete it; state bucket (cents) |
+| Caveats | AWS restarts a stopped RDS instance after seven days | Irreversible except by restoring the snapshot |
+| Resume | Set counts back, apply; `aws rds start-db-instance` | Full redeploy from step 1 |
+
+Pausing is for gaps of days. For anything longer, destroy; the load balancer alone costs
+more per month than the rest of an idle stack.
+
 ### Cost and teardown
 
 The foundation resources cost close to nothing while idle: SQS, S3, Secrets Manager
 (about USD 0.40 per secret per month), CloudWatch log storage and ECR storage. The
 running services add roughly USD 9 per month for each 0.25 vCPU / 0.5 GiB Fargate task
 and about USD 17 per month for the load balancer, which bills while it exists even with
-zero tasks. The RDS instance is the next line item: `db.t4g.micro` with 20 GiB gp3 is roughly USD 14
-per month, or free for twelve months in free-tier-eligible accounts. Stop it between
-sessions with `aws rds stop-db-instance` (AWS restarts it after seven days). The NAT
-gateway is off by default (`enable_nat_gateway = false`); turning it on adds roughly
-USD 33 per month. The budget sends email alerts at the configured thresholds.
+zero tasks. The RDS instance is the next line item: `db.t4g.micro` with 20 GiB gp3 is
+roughly USD 14 per month, or free for twelve months in free-tier-eligible accounts. The
+NAT gateway is off by default (`enable_nat_gateway = false`); turning it on adds roughly
+USD 33 per month. Log groups expire after `log_retention_days` (14) and benchmark
+artifacts after `artifact_expiration_days` (30).
 
 `terraform destroy` is safe by default and will **refuse** to remove resources that still
-hold data. For a disposable development environment set these in `dev.tfvars` first:
+hold data: the artifact bucket keeps its objects, the ECR repository its images, secrets
+get a seven-day recovery window, and RDS has deletion protection plus a final snapshot.
+The teardown script flips those flags for one run, applies them (AWS enforces RDS
+deletion protection at the API, so the apply must precede the destroy), scales the
+services to zero, then destroys. It never touches the state bucket.
+
+```powershell
+.\scripts\aws\teardown.ps1 -Environment dev -PlanOnly     # show both plans, change nothing
+.\scripts\aws\teardown.ps1 -Environment dev               # keeps a final RDS snapshot
+.\scripts\aws\teardown.ps1 -Environment dev -SkipFinalSnapshot
+.\scripts\aws\post_destroy_check.ps1 -Environment dev     # anything still billing?
+```
+
+The equivalent manual flags in `dev.tfvars`, if you prefer not to use the script:
 
 ```hcl
 artifact_bucket_force_destroy = true   # delete the artifact bucket with its objects
@@ -556,13 +612,21 @@ ecr_force_delete              = true   # delete the ECR repository with its imag
 secret_recovery_window_days   = 0      # delete secrets immediately instead of after 7 days
 db_deletion_protection        = false  # AWS refuses to delete the instance until this is applied
 db_skip_final_snapshot        = true   # otherwise a final snapshot is kept (and billed)
+alb_deletion_protection       = false
 ```
 
-Apply once so the RDS flags take effect, then run
-`terraform destroy -var-file=environments/dev.tfvars`. Automated RDS backups are
-removed with the instance; manual snapshots and any final snapshot are not. Budget email
-notifications are removed with the budget. Finally, if the environment is being retired
-for good, empty and delete the state bucket by hand; Terraform will not do it.
+Apply once, then `terraform destroy -var-file=environments/dev.tfvars`.
+
+The post-destroy check sweeps the region for leftovers that commonly survive a destroy
+and keep billing or clutter: RDS snapshots, network interfaces, NAT gateways and elastic
+IPs, load balancers and target groups, log groups (including the RDS and Container
+Insights groups AWS creates on its own), secrets scheduled for deletion, alarms, budgets,
+and anything else carrying the `Project` and `Environment` tags. It exits non-zero when
+something other than the state bucket remains. Unconfirmed SNS email subscriptions
+cannot be deleted by Terraform and expire by themselves after three days.
+
+Delete the state bucket last and by hand, only when the environment is retired for good;
+`infra/bootstrap` sets `prevent_destroy` so `terraform destroy` refuses on purpose.
 
 ### Security notes for this milestone
 
@@ -579,10 +643,10 @@ for good, empty and delete the state bucket by hand; Terraform will not do it.
   parameter group sets `require_secure_transport`. `DB_TLS_VERIFY` stays `true` and
   `DB_TLS_CA` points at the bundled `/app/certs/rds-global-bundle.pem`.
 - Deletion protection and a final snapshot are on by default for the instance.
-- The API and worker task definitions reference only their own user's secret. Passwords
-  never appear in environment variables, outputs or source. The worker task role can
-  reach only the job queue and the artifact prefix; the API task role can only send to
-  the queue and read artifacts.
+- Each task kind has its own execution role that can read only the secrets its task
+  definition references and write only its own log group. The API and worker task roles
+  reach only the job queue and the artifact prefix. Passwords never appear in environment
+  variables, outputs or source.
 - Without a certificate the ALB listener is plain HTTP, so the allowlist in
   `alb_allowed_cidrs` is the only access control. Set `acm_certificate_arn` once you
   have a domain; port 80 then redirects to HTTPS.

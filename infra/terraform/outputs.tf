@@ -120,8 +120,9 @@ output "database_names" {
 output "iam_role_arns" {
   description = "Role ARNs consumed by the ECS task definitions."
   value = {
-    execution           = aws_iam_role.execution.arn
-    bootstrap_execution = aws_iam_role.bootstrap_execution.arn
+    api_execution       = local.api_execution_role_arn
+    worker_execution    = local.worker_execution_role_arn
+    bootstrap_execution = local.bootstrap_execution_role_arn
     api_task            = aws_iam_role.api_task.arn
     worker_task         = aws_iam_role.worker_task.arn
     bootstrap_task      = aws_iam_role.bootstrap_task.arn

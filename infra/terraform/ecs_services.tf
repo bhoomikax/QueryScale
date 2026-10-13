@@ -84,7 +84,7 @@ resource "aws_ecs_task_definition" "api" {
   network_mode             = "awsvpc"
   cpu                      = tostring(var.api_cpu)
   memory                   = tostring(var.api_memory)
-  execution_role_arn       = aws_iam_role.execution.arn
+  execution_role_arn       = local.api_execution_role_arn
   task_role_arn            = aws_iam_role.api_task.arn
 
   runtime_platform {
@@ -183,7 +183,7 @@ resource "aws_ecs_task_definition" "worker" {
   network_mode             = "awsvpc"
   cpu                      = tostring(var.worker_cpu)
   memory                   = tostring(var.worker_memory)
-  execution_role_arn       = aws_iam_role.execution.arn
+  execution_role_arn       = local.worker_execution_role_arn
   task_role_arn            = aws_iam_role.worker_task.arn
 
   runtime_platform {
