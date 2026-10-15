@@ -19,3 +19,14 @@ venv/
 
 # Python packaging
 *.egg-info/
+
+# Generated runtime state and model artifacts
+runtime/
+models/
+
+# Local benchmark history, metadata snapshots, backups, and job stores
+data/benchmark_history.jsonl
+data/schema_metadata.json
+data_backup/
+*.sqlite3
+data/query_features.csv

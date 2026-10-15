@@ -29,14 +29,14 @@ class PipelineTests(unittest.TestCase):
                 ])
                 writer.writerow([
                     "Q001",
-                    "SELECT * FROM Loans WHERE loan_status = 'ACTIVE' ORDER BY branch_id DESC;",
+                    "SELECT * FROM Loans WHERE status = 'ACTIVE' ORDER BY principal DESC;",
                     "2025-01-01T00:00:00Z",
                     "30.0",
                     "HIGH",
                     "Loans",
-                    "loan_status",
+                    "status",
                     "",
-                    "branch_id",
+                    "principal",
                 ])
 
             rows = run_pipeline(log_path, feature_path, candidate_path, recommendation_path)

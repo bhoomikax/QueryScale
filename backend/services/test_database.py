@@ -24,6 +24,26 @@ def quote_identifier(identifier: str) -> str:
     return f"`{identifier}`"
 
 
+def assert_distinct_databases(primary: str | None = None, test: str | None = None) -> tuple[str, str]:
+    """Validate that the primary and test database names are safe and cannot refer to the same database.
+
+    MySQL on Windows and macOS (lower_case_table_names=1 or 2) treats database
+    names case-insensitively, so ``QueryScale`` and ``queryscale`` are the same
+    database there. The comparison is therefore case-insensitive everywhere.
+    """
+
+    primary_name = settings.db_name if primary is None else primary
+    test_name = settings.db_test_name if test is None else test
+    quote_identifier(primary_name)
+    quote_identifier(test_name)
+    if primary_name.strip().lower() == test_name.strip().lower():
+        raise ValueError(
+            f"DB_TEST_NAME ({test_name!r}) must differ from DB_NAME ({primary_name!r}), "
+            "compared case-insensitively. Benchmarks drop and recreate the test database."
+        )
+    return primary_name, test_name
+
+
 def _server_config() -> dict[str, object]:
     config = settings.mysql_config()
     config.pop("database", None)
@@ -75,13 +95,7 @@ def _copy_tables(cursor, source_database: str, test_database: str, tables: Itera
 def clone_test_database() -> tuple[str, ...]:
     """Replace the configured test database with a copy of the source database."""
 
-    source_database = settings.db_name
-    test_database = settings.db_test_name
-    if source_database == test_database:
-        raise ValueError("DB_TEST_NAME must differ from DB_NAME")
-
-    quote_identifier(source_database)
-    quote_identifier(test_database)
+    source_database, test_database = assert_distinct_databases()
     connection = _connect_to_server()
     cursor = connection.cursor()
     try:

@@ -17,9 +17,10 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from backend.config import settings
-from backend.services.benchmark import run_benchmark
+from backend.services.benchmark import run_benchmark_detailed
 from backend.services.pipeline import run_pipeline
-from backend.services.test_database import clone_test_database
+from backend.services.schema_metadata import load_metadata
+from backend.services.test_database import assert_distinct_databases, clone_test_database, quote_identifier
 from scripts.run_optimization import _select_recommendation
 from scripts.seed import (
     DEFAULT_CONFIG,
@@ -38,11 +39,35 @@ def _server_config() -> dict[str, object]:
     return config
 
 
-def initialize_schema() -> None:
-    """Recreate the local source schema from database/schema.sql."""
+def schema_statements(database: str, schema_path: Path | None = None) -> list[str]:
+    """Statements from database/schema.sql retargeted at ``database``.
 
-    schema_path = ROOT_DIR / "database" / "schema.sql"
-    statements = [statement.strip() for statement in schema_path.read_text(encoding="utf-8").split(";")]
+    schema.sql begins with ``CREATE DATABASE`` and ``USE`` for `queryscale`. Those
+    two statements are replaced so initialization always targets the configured
+    DB_NAME. Any other database-level statement is rejected.
+    """
+
+    path = schema_path or ROOT_DIR / "database" / "schema.sql"
+    quoted = quote_identifier(database)
+    statements = [
+        f"CREATE DATABASE IF NOT EXISTS {quoted} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+        f"USE {quoted}",
+    ]
+    for raw in path.read_text(encoding="utf-8").split(";"):
+        statement = raw.strip()
+        upper = " ".join(statement.upper().split())
+        if not statement or upper.startswith(("CREATE DATABASE", "USE ")):
+            continue
+        if upper.startswith(("DROP DATABASE", "ALTER DATABASE")):
+            raise ValueError(f"Refusing database-level statement in schema.sql: {statement[:60]}")
+        statements.append(statement)
+    return statements
+
+
+def initialize_schema() -> None:
+    """Drop and recreate the five QueryScale tables in the configured DB_NAME (destructive)."""
+
+    statements = schema_statements(settings.db_name)
     try:
         connection = mysql.connector.connect(**_server_config())
         cursor = connection.cursor()
@@ -76,7 +101,7 @@ def seed_source_database(config: dict[str, int]) -> None:
         connection.close()
 
 
-def run_workload(iterations: int, log_path: Path) -> None:
+def run_workload(iterations: int, log_path: Path, seed: int | None = None) -> None:
     """Execute the real workload once and replace any stale query log."""
 
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,7 +109,7 @@ def run_workload(iterations: int, log_path: Path) -> None:
         log_path.unlink()
     connection = make_workload_connection()
     try:
-        execute_batch(connection, iterations, str(log_path))
+        execute_batch(connection, iterations, str(log_path), seed)
     except MySQLError as exc:
         raise RuntimeError("Unable to execute the QueryScale workload.") from exc
     finally:
@@ -101,32 +126,60 @@ def run_local_pipeline(
     recommendation_path: Path,
     benchmark_path: Path,
     candidate_id: str | None,
+    seed: int | None = None,
+    collect_labels: int = 0,
+    train: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, object]]]:
     """Execute all local data, recommendation, test DB, and benchmark stages."""
 
+    # Validate names before any destructive step (seeding truncates DB_NAME, cloning drops DB_TEST_NAME).
+    assert_distinct_databases()
     if initialize:
-        print("[1/7] Initializing source schema")
+        print("[1/8] Initializing source schema")
         initialize_schema()
-    print("[2/7] Seeding source database")
+    print("[2/8] Seeding source database")
     seed_source_database(seed_config)
-    print("[3/7] Executing measured workload")
-    run_workload(iterations, log_path)
-    print("[4/7] Generating recommendations")
-    recommendations = run_pipeline(log_path, feature_path, candidate_path, recommendation_path)
+    print("[3/8] Executing measured workload (writes are rolled back)")
+    run_workload(iterations, log_path, seed)
+    print("[4/8] Collecting schema statistics (read-only)")
+    metadata = load_metadata(source="mysql")
+    print(f"      {len(metadata.tables)} tables, server {metadata.server_version}")
+    print("[5/8] Extracting features and ranking recommendations")
+    recommendations = run_pipeline(
+        log_path, feature_path, candidate_path, recommendation_path,
+        metadata=metadata, query_feature_path=feature_path.with_name("query_features.csv"),
+    )
     recommendation = _select_recommendation(recommendations, candidate_id)
-    print(f"      Selected {recommendation['candidate_id']}")
-    print("[5/7] Rebuilding isolated test database")
+    print(f"      {len(recommendations)} recommendations ({recommendations[0]['ranking_method']} ranking); selected {recommendation['candidate_id']}")
+    print("[6/8] Rebuilding isolated test database")
     clone_test_database()
-    print("[6/7] Running before/after benchmark")
-    results = run_benchmark(
+    if collect_labels:
+        from scripts.collect_benchmark_labels import main as collect_main
+
+        print(f"      Collecting measured labels for up to {collect_labels} candidates")
+        collect_main(["--limit", str(collect_labels), "--iterations", str(iterations)])
+    if train:
+        from backend.services.analysis import run_training
+
+        print("      Training from measured benchmark history")
+        outcome = run_training({"rerank": True})
+        print(f"      Training status: {outcome['status']} ({outcome['samples']} samples)")
+    print("[7/8] Running before/after benchmark on the test database")
+    record = run_benchmark_detailed(
         candidate_id=str(recommendation["candidate_id"]),
         table=str(recommendation["table"]),
         columns=str(recommendation["columns"]),
         iterations=iterations,
         output_path=benchmark_path,
+        supporting_query_ids=[q for q in str(recommendation.get("supporting_query_ids", "")).split(";") if q] or None,
     )
-    print("[7/7] API and dashboard artifacts ready")
-    return recommendation, results
+    summary = record["summary"]
+    print(
+        f"      Weighted mean {summary['before_ms']} ms -> {summary['after_ms']} ms; "
+        f"workload benefit {summary['workload_benefit']:.4f}; cleanup {record['cleanup']['status'] if record.get('cleanup') else 'n/a'}"
+    )
+    print("[8/8] API and dashboard artifacts ready")
+    return recommendation, record["queries"]
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -140,6 +193,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--accounts", type=int, default=DEFAULT_CONFIG["accounts"])
     parser.add_argument("--transactions", type=int, default=DEFAULT_CONFIG["transactions"])
     parser.add_argument("--loans", type=int, default=DEFAULT_CONFIG["loans"])
+    parser.add_argument("--seed", type=int, default=None, help="Seed for a reproducible workload log.")
+    parser.add_argument("--collect-labels", type=int, default=0, help="Benchmark up to N candidates to collect ML labels.")
+    parser.add_argument("--train", action="store_true", help="Train the ML model from measured benchmark history.")
     args = parser.parse_args(argv)
 
     paths = {
@@ -168,6 +224,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             recommendation_path=paths["recommendation"],
             benchmark_path=paths["benchmark"],
             candidate_id=args.candidate_id,
+            seed=args.seed,
+            collect_labels=args.collect_labels,
+            train=args.train,
         )
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         print(f"Local pipeline failed: {exc}", file=sys.stderr)

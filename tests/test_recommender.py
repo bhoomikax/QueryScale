@@ -26,7 +26,7 @@ class RecommenderTests(unittest.TestCase):
                     "IDX_TRANSACTIONS_account_id",
                     "Transactions",
                     "account_id",
-                    "25.5",
+                    "65.5",
                     "CREATE INDEX idx_transactions_account_id ON Transactions (account_id);",
                     "High query frequency and filter usage indicate this index would reduce expensive scans.",
                 ])

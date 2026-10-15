@@ -16,6 +16,7 @@
       </a>
       <div class="topbar-actions">
         <span class="environment"><span class="status-dot" aria-hidden="true"></span> Local workspace</span>
+        <button class="text-button" id="run-analysis" type="button" title="Analyze the captured workload">Run analysis</button>
         <button class="icon-button" id="refresh-dashboard" type="button" title="Refresh dashboard" aria-label="Refresh dashboard">&#8635;</button>
       </div>
     </header>
@@ -30,6 +31,7 @@
         <div class="run-state" aria-label="Dashboard state">
           <span class="run-state-label">Workspace state</span>
           <strong id="workspace-state">Awaiting data</strong>
+          <span class="run-state-detail" id="analysis-state">Analysis status unknown</span>
         </div>
       </section>
 
@@ -103,6 +105,19 @@
             <span>Improvement</span>
             <strong data-metric="improvement">--</strong>
           </div>
+          <div class="impact-line">
+            <span>Workload benefit <small class="tag tag-measured">measured</small></span>
+            <strong data-metric="workload-benefit">--</strong>
+          </div>
+          <div class="impact-line">
+            <span>Index size <small class="tag tag-measured">measured</small></span>
+            <strong data-metric="index-size">--</strong>
+          </div>
+          <div class="impact-line">
+            <span>Write overhead <small class="tag tag-measured">measured</small></span>
+            <strong data-metric="write-overhead">--</strong>
+          </div>
+          <p class="panel-note" id="benchmark-run">No benchmark run recorded.</p>
         </article>
       </section>
 
@@ -142,6 +157,17 @@
             <span class="panel-index">05</span>
           </div>
           <div class="chart-area chart-area-wide" id="frequency-chart"></div>
+        </article>
+
+        <article class="panel chart-panel chart-panel-wide">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Model evaluation</p>
+              <h2>ML vs rule-based ranking</h2>
+            </div>
+            <span class="panel-index">06</span>
+          </div>
+          <div class="ml-evaluation" id="ml-evaluation"></div>
         </article>
       </section>
     </main>

@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from backend.config import ROOT_DIR, settings
+from backend.services.stats import optional_float
 
 
 router = APIRouter(prefix="/queries", tags=["queries"])
@@ -43,6 +44,8 @@ def read_query_logs(log_path: str | Path | None = None) -> list[dict[str, Any]]:
                 "where_columns": _split_field(row.get("where_columns", "")),
                 "join_columns": _split_field(row.get("join_columns", "")),
                 "order_columns": _split_field(row.get("order_columns", "")),
+                "rows_returned": optional_float(row.get("rows_returned")),
+                "rows_examined": optional_float(row.get("rows_examined")),
             })
     return rows
 
@@ -71,3 +74,25 @@ def get_slow_queries(
     rows = [row for row in _load_or_raise() if row["execution_time_ms"] >= threshold_ms]
     rows.sort(key=lambda row: row["execution_time_ms"], reverse=True)
     return rows[:limit]
+
+@router.get("/summary")
+def get_query_summary() -> list[dict[str, Any]]:
+    """Per-query workload features: counts, latency statistics, and parsed structure.
+
+    P95 is null when a query has fewer than 20 observations. Rows examined is
+    null when performance_schema data was not captured.
+    """
+
+    from backend.services.feature_extractor import extract_query_features, _read_query_logs
+
+    try:
+        log_rows = _read_query_logs(_configured_log_path())
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    features, _ = extract_query_features(log_rows)
+    summary = []
+    for feature in features:
+        item = {key: value for key, value in feature.items() if key != "analysis"}
+        summary.append(item)
+    summary.sort(key=lambda row: -(row.get("total_latency_ms") or 0))
+    return summary

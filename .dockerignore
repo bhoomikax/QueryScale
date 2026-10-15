@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+tests/
+# Generated artifacts are mounted at runtime, never baked into the image.
+data/
+data_backup/
+models/
+runtime/

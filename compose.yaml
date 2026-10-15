@@ -1,0 +1,101 @@
+# QueryScale local stack: MySQL 8.4, API + dashboard, and one background worker.
+#
+# Values come from the local .env file (never committed). Required: DB_PASSWORD.
+# The MySQL root password is set from DB_PASSWORD only when the data volume is
+# first created. Changing DB_PASSWORD later does NOT change the stored password.
+#
+# Nothing here initializes, seeds, clones, or resets databases automatically.
+
+name: queryscale
+
+x-app-environment: &app-environment
+  # Containers reach MySQL by service name on the internal port, never localhost.
+  DB_HOST: queryscale-mysql
+  DB_PORT: "3306"
+  DB_USER: root
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+  DB_NAME: ${DB_NAME:-queryscale}
+  DB_TEST_NAME: ${DB_TEST_NAME:-queryscale_test}
+  DB_CHARSET: utf8mb4
+  # API records jobs; the single worker executes them from the shared job store.
+  JOB_EXECUTION_MODE: queue
+  JOB_DATABASE_PATH: runtime/queryscale_jobs.sqlite3
+  METADATA_SOURCE: ${METADATA_SOURCE:-auto}
+  ML_MIN_TRAINING_SAMPLES: ${ML_MIN_TRAINING_SAMPLES:-20}
+  ML_MIN_TRAINING_GROUPS: ${ML_MIN_TRAINING_GROUPS:-5}
+  ML_ALLOW_SYNTHETIC_MODEL: "false"
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: ${LOG_FORMAT:-text}
+
+x-app-volumes: &app-volumes
+  # Shared artifacts: the same files the non-Docker workflow uses.
+  - ./data:/app/data
+  - ./models:/app/models
+  # Job store, worker lock, heartbeat, and benchmark lock. A named volume keeps
+  # SQLite locking reliable (bind mounts from Windows are not).
+  - queryscale-runtime:/app/runtime
+
+services:
+  queryscale-mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_DATABASE: ${DB_NAME:-queryscale}
+    ports:
+      # Host 3307 so the Windows MySQL80 service can keep 3306. Bound to localhost only.
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3307}:3306"
+    volumes:
+      - queryscale-mysql-data:/var/lib/mysql
+    healthcheck:
+      # TCP ping only succeeds once the real server is up (init runs without networking).
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks: [queryscale]
+
+  queryscale-api:
+    build: .
+    image: queryscale-app:local
+    command: ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *app-environment
+    volumes: *app-volumes
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      queryscale-mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [queryscale]
+
+  queryscale-worker:
+    build: .
+    image: queryscale-app:local
+    command: ["python", "-m", "backend.worker"]
+    environment: *app-environment
+    volumes: *app-volumes
+    depends_on:
+      queryscale-mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, time, pathlib; p = pathlib.Path('/app/runtime/worker.heartbeat'); sys.exit(0 if p.exists() and time.time() - p.stat().st_mtime < 30 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    # Exactly one worker: the job store and benchmark lock assume a single executor.
+    deploy:
+      replicas: 1
+    stop_grace_period: 30s
+    restart: unless-stopped
+    networks: [queryscale]
+
+networks:
+  queryscale:
+    name: queryscale
+
+volumes:
+  queryscale-mysql-data:
+  queryscale-runtime:
