@@ -238,6 +238,40 @@ workload_benefit = Σ_{q ∈ S} n_q · (median_before_q − median_after_q)  /  
 
 **Synthetic demo**: `py scripts/train_model.py --synthetic-demo` trains on formula-generated labels into `models/demo/`. It verifies the code path only. It is never used for ranking, and its metrics say nothing about real recommendation quality.
 
+### Reproducing the measured ML experiment
+
+All commands run on the host against the Docker MySQL (`.env` with `DB_PORT=3307`). Steps 1 and 2 are destructive for `DB_NAME` and `DB_TEST_NAME` only.
+
+```powershell
+# 1. Schema, seed (50 branches, 10k customers, 15k accounts, 100k transactions, 5k loans),
+#    200-iteration workload, live metadata, candidates, test-database clone, one benchmark
+py scripts/run_local_pipeline.py --initialize-schema --iterations 200 --seed 42
+
+# 2. Measured labels: every scored candidate, same workload signature each pass.
+#    Repeat the command to add passes; repeated runs of one candidate share a group.
+py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
+py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
+
+# 3. Train from measured history only, then inspect
+py scripts/train_model.py
+Get-Content models\evaluation.json
+Get-Content models\index_ranker.json
+Invoke-RestMethod http://localhost:8000/api/ml/model | ConvertTo-Json -Depth 6
+```
+
+```powershell
+# 4. Diagnostic: leave-one-candidate-out evaluation over the same measured records (trains nothing)
+py scripts/evaluate_leave_one_out.py
+Get-Content models\evaluation_logo.json
+
+# 5. Tests (no database needed)
+py -m unittest discover -s tests -p "test_*.py"
+```
+
+Only runs whose `workload.signature` matches the most common signature are combined (same templates, iterations, seed, repeats, protocol). Runs with a different `repeats` value, such as the single `repeats=1` run from step 1, stay in the history but are excluded from training and listed under `records_excluded`. Training refuses to run below `ML_MIN_TRAINING_SAMPLES` (20) rows or `ML_MIN_TRAINING_GROUPS` (5) candidates. Previous `models/evaluation.json` and `models/index_ranker.*` files are moved to `models/archive/` before a new model is written.
+
+Pass `--seed` to `scripts/seed.py` or `scripts/run_local_pipeline.py` to make the generated rows reproducible; the 2026-10-18 data was generated before this option existed, so a re-seed reproduces its row counts but not its exact values. The experiment record for this repository's own run is in `docs/ml-experiment-2026-10-18.md`, and the generated files it was read from are frozen under `docs/evidence/2026-10-18/`.
+
 ## API
 
 | Endpoint | Purpose |
@@ -286,7 +320,7 @@ The application runs unchanged locally and is configured for AWS through environ
 - **CloudWatch**: set `LOG_FORMAT=json`. Logs go to stdout with request IDs and durations.
 - **SQS**: not wired on this branch. Jobs run in-process with idempotent submission and persisted status, which suits a single API task. For several tasks, move execution to a queue worker such as the one on the `cloud` branch and keep the job record as shared state.
 
-Nothing is deployed automatically.
+**Deployment status: not deployed.** No AWS resources have been created from any branch. The Terraform, ECS, RDS, SQS, and S3 definitions live on the `cloud` branch and were rehearsed only against local Docker; see `docs/cloud-integration-status.md` for what integrating them with this branch requires.
 
 ## Known limitations
 

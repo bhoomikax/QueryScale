@@ -1,0 +1,419 @@
+{
+  "baseline_model": "dummy_mean",
+  "feature_names": [
+    "column_count",
+    "equality_prefix_length",
+    "has_range_column",
+    "covers_order_by",
+    "covers_group_by",
+    "is_covering",
+    "supporting_query_count",
+    "workload_share",
+    "time_share",
+    "log_avg_latency_ms",
+    "log_median_latency_ms",
+    "log_p95_latency_ms",
+    "where_usage_ratio",
+    "join_usage_ratio",
+    "order_usage_ratio",
+    "log_table_rows",
+    "leading_selectivity",
+    "log_leading_cardinality",
+    "write_ratio",
+    "existing_prefix_ratio",
+    "log_estimated_index_mib"
+  ],
+  "generated_at": "2026-10-18T17:29:42Z",
+  "groups": 12,
+  "k": 5,
+  "limitations": [
+    "12 candidates from one workload and one dataset; a candidate held out here still shares the workload with the training candidates.",
+    "Per-candidate metrics average the repeated runs of each candidate, so ranking metrics are over the candidates, not the runs."
+  ],
+  "method": "leave-one-candidate-out; every run of the held-out candidate is predicted by a model fitted on the other candidates",
+  "note": "Diagnostic only. No model is trained or saved by this script; the production model is selected by scripts/train_model.py.",
+  "provenance": {
+    "benchmark_protocol_version": 2,
+    "dataset_signature": null,
+    "datasets": [
+      "73be471999e9e1bf"
+    ],
+    "label_source": "measured_benchmark",
+    "records_excluded": {
+      "different_workload": 2,
+      "not_completed": 1
+    },
+    "records_total": 39,
+    "records_used": 36,
+    "run_ids": [
+      "BR-20261018T171247Z-ef1c84e9",
+      "BR-20261018T171258Z-d94e66e8",
+      "BR-20261018T171310Z-9716ce31",
+      "BR-20261018T171323Z-5a4da857",
+      "BR-20261018T171336Z-a4729036",
+      "BR-20261018T171349Z-497e48c8",
+      "BR-20261018T171402Z-f546db5a",
+      "BR-20261018T171415Z-7ebe5c6d",
+      "BR-20261018T171427Z-eb2f43c9",
+      "BR-20261018T171439Z-14bbd414",
+      "BR-20261018T171451Z-bbfdcc9e",
+      "BR-20261018T171504Z-e2aa93c5",
+      "BR-20261018T171517Z-e745afd8",
+      "BR-20261018T171529Z-c13cb89a",
+      "BR-20261018T171541Z-2bc20a63",
+      "BR-20261018T171553Z-321ddb72",
+      "BR-20261018T171606Z-59800914",
+      "BR-20261018T171618Z-d38990d4",
+      "BR-20261018T171630Z-c0670c6d",
+      "BR-20261018T171643Z-2ea17a9e",
+      "BR-20261018T171655Z-aece3406",
+      "BR-20261018T171712Z-9e4833ff",
+      "BR-20261018T171725Z-0fbf5ae5",
+      "BR-20261018T171741Z-33a168dc",
+      "BR-20261018T171821Z-881c138e",
+      "BR-20261018T171832Z-c2298efd",
+      "BR-20261018T171844Z-c78a046a",
+      "BR-20261018T171856Z-c5579c00",
+      "BR-20261018T171909Z-7be4a29f",
+      "BR-20261018T171922Z-d999bab4",
+      "BR-20261018T171935Z-345608b8",
+      "BR-20261018T171947Z-dbe06a31",
+      "BR-20261018T171959Z-119bc3a2",
+      "BR-20261018T172011Z-147a65fb",
+      "BR-20261018T172023Z-2dfd2f64",
+      "BR-20261018T172034Z-18614cb7"
+    ],
+    "server_versions": [
+      "8.4.11"
+    ],
+    "strict_dataset": false,
+    "target_definition": "workload_benefit = sum over affected query templates q of n_q * (median_before_q - median_after_q) divided by sum over all templates of n_q * median_before_q, from paired before/after replays of the same seeded workload on the isolated test database. Affected templates are those whose post-index EXPLAIN uses the candidate index (supporting queries when EXPLAIN is unavailable).",
+    "workload_signature": "ce72eafb9ed1603c"
+  },
+  "random_state": 42,
+  "relevance_threshold": 0.05,
+  "results": {
+    "decision_tree": {
+      "out_of_fold_rows": {
+        "mae": 0.014661,
+        "rmse": 0.021129
+      },
+      "per_candidate": {
+        "mae": 0.014661,
+        "ndcg_at_k": 0.914546,
+        "precision_at_k": 0.4,
+        "rmse": 0.020273,
+        "spearman": 0.073555
+      },
+      "predictions_per_candidate": {
+        "IDX_ACCOUNTS_BALANCE": {
+          "label_mean": 0.005474,
+          "prediction_mean": 0.012677
+        },
+        "IDX_ACCOUNTS_BALANCE_CUSTOMER_ID": {
+          "label_mean": 0.00719,
+          "prediction_mean": 0.002124
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE": {
+          "label_mean": 0.012194,
+          "prediction_mean": 0.008086
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE_BALANCE": {
+          "label_mean": 0.011594,
+          "prediction_mean": 0.008286
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS": {
+          "label_mean": 0.003201,
+          "prediction_mean": 0.012677
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS_NAME": {
+          "label_mean": 0.002191,
+          "prediction_mean": 0.003123
+        },
+        "IDX_LOANS_STATUS_CUSTOMER_ID_PRINCIPAL": {
+          "label_mean": 0.0,
+          "prediction_mean": 0.01316
+        },
+        "IDX_LOANS_STATUS_PRINCIPAL": {
+          "label_mean": 0.01316,
+          "prediction_mean": -0.000124
+        },
+        "IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE": {
+          "label_mean": -0.000248,
+          "prediction_mean": 0.01316
+        },
+        "IDX_TRANSACTIONS_TXN_DATE_AMOUNT": {
+          "label_mean": 0.064476,
+          "prediction_mean": 0.011594
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT": {
+          "label_mean": 0.318534,
+          "prediction_mean": 0.345086
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID": {
+          "label_mean": 0.345086,
+          "prediction_mean": 0.318534
+        }
+      }
+    },
+    "dummy_mean": {
+      "out_of_fold_rows": {
+        "mae": 0.097077,
+        "rmse": 0.131568
+      },
+      "per_candidate": {
+        "mae": 0.096935,
+        "ndcg_at_k": 0.0078,
+        "precision_at_k": 0.0,
+        "rmse": 0.131433,
+        "spearman": -1.0
+      },
+      "predictions_per_candidate": {
+        "IDX_ACCOUNTS_BALANCE": {
+          "label_mean": 0.005474,
+          "prediction_mean": 0.070671
+        },
+        "IDX_ACCOUNTS_BALANCE_CUSTOMER_ID": {
+          "label_mean": 0.00719,
+          "prediction_mean": 0.070515
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE": {
+          "label_mean": 0.012194,
+          "prediction_mean": 0.07006
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE_BALANCE": {
+          "label_mean": 0.011594,
+          "prediction_mean": 0.070114
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS": {
+          "label_mean": 0.003201,
+          "prediction_mean": 0.070877
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS_NAME": {
+          "label_mean": 0.002191,
+          "prediction_mean": 0.070969
+        },
+        "IDX_LOANS_STATUS_CUSTOMER_ID_PRINCIPAL": {
+          "label_mean": 0.0,
+          "prediction_mean": 0.071168
+        },
+        "IDX_LOANS_STATUS_PRINCIPAL": {
+          "label_mean": 0.01316,
+          "prediction_mean": 0.069972
+        },
+        "IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE": {
+          "label_mean": -0.000248,
+          "prediction_mean": 0.071191
+        },
+        "IDX_TRANSACTIONS_TXN_DATE_AMOUNT": {
+          "label_mean": 0.064476,
+          "prediction_mean": 0.065307
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT": {
+          "label_mean": 0.318534,
+          "prediction_mean": 0.042211
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID": {
+          "label_mean": 0.345086,
+          "prediction_mean": 0.039797
+        }
+      }
+    },
+    "gradient_boosting": {
+      "out_of_fold_rows": {
+        "mae": 0.017632,
+        "rmse": 0.032124
+      },
+      "per_candidate": {
+        "mae": 0.017508,
+        "ndcg_at_k": 0.958119,
+        "precision_at_k": 0.6,
+        "rmse": 0.031568,
+        "spearman": 0.328671
+      },
+      "predictions_per_candidate": {
+        "IDX_ACCOUNTS_BALANCE": {
+          "label_mean": 0.005474,
+          "prediction_mean": 0.006995
+        },
+        "IDX_ACCOUNTS_BALANCE_CUSTOMER_ID": {
+          "label_mean": 0.00719,
+          "prediction_mean": 0.005298
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE": {
+          "label_mean": 0.012194,
+          "prediction_mean": 0.012795
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE_BALANCE": {
+          "label_mean": 0.011594,
+          "prediction_mean": 0.009516
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS": {
+          "label_mean": 0.003201,
+          "prediction_mean": 0.002755
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS_NAME": {
+          "label_mean": 0.002191,
+          "prediction_mean": 0.000721
+        },
+        "IDX_LOANS_STATUS_CUSTOMER_ID_PRINCIPAL": {
+          "label_mean": 0.0,
+          "prediction_mean": 0.013691
+        },
+        "IDX_LOANS_STATUS_PRINCIPAL": {
+          "label_mean": 0.01316,
+          "prediction_mean": -0.000769
+        },
+        "IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE": {
+          "label_mean": -0.000248,
+          "prediction_mean": 0.097705
+        },
+        "IDX_TRANSACTIONS_TXN_DATE_AMOUNT": {
+          "label_mean": 0.064476,
+          "prediction_mean": 0.08694
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT": {
+          "label_mean": 0.318534,
+          "prediction_mean": 0.34692
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID": {
+          "label_mean": 0.345086,
+          "prediction_mean": 0.319426
+        }
+      }
+    },
+    "random_forest": {
+      "out_of_fold_rows": {
+        "mae": 0.026713,
+        "rmse": 0.045207
+      },
+      "per_candidate": {
+        "mae": 0.026657,
+        "ndcg_at_k": 0.965712,
+        "precision_at_k": 0.6,
+        "rmse": 0.044813,
+        "spearman": 0.468531
+      },
+      "predictions_per_candidate": {
+        "IDX_ACCOUNTS_BALANCE": {
+          "label_mean": 0.005474,
+          "prediction_mean": 0.0108
+        },
+        "IDX_ACCOUNTS_BALANCE_CUSTOMER_ID": {
+          "label_mean": 0.00719,
+          "prediction_mean": 0.007958
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE": {
+          "label_mean": 0.012194,
+          "prediction_mean": 0.013803
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE_BALANCE": {
+          "label_mean": 0.011594,
+          "prediction_mean": 0.013304
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS": {
+          "label_mean": 0.003201,
+          "prediction_mean": 0.004954
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS_NAME": {
+          "label_mean": 0.002191,
+          "prediction_mean": 0.003451
+        },
+        "IDX_LOANS_STATUS_CUSTOMER_ID_PRINCIPAL": {
+          "label_mean": 0.0,
+          "prediction_mean": 0.023666
+        },
+        "IDX_LOANS_STATUS_PRINCIPAL": {
+          "label_mean": 0.01316,
+          "prediction_mean": 0.006614
+        },
+        "IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE": {
+          "label_mean": -0.000248,
+          "prediction_mean": 0.116334
+        },
+        "IDX_TRANSACTIONS_TXN_DATE_AMOUNT": {
+          "label_mean": 0.064476,
+          "prediction_mean": 0.126085
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT": {
+          "label_mean": 0.318534,
+          "prediction_mean": 0.293123
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID": {
+          "label_mean": 0.345086,
+          "prediction_mean": 0.271439
+        }
+      }
+    },
+    "ridge": {
+      "out_of_fold_rows": {
+        "mae": 0.038908,
+        "rmse": 0.053837
+      },
+      "per_candidate": {
+        "mae": 0.038908,
+        "ndcg_at_k": 0.965712,
+        "precision_at_k": 0.6,
+        "rmse": 0.053507,
+        "spearman": 0.286713
+      },
+      "predictions_per_candidate": {
+        "IDX_ACCOUNTS_BALANCE": {
+          "label_mean": 0.005474,
+          "prediction_mean": 0.014812
+        },
+        "IDX_ACCOUNTS_BALANCE_CUSTOMER_ID": {
+          "label_mean": 0.00719,
+          "prediction_mean": -0.004938
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE": {
+          "label_mean": 0.012194,
+          "prediction_mean": 0.005239
+        },
+        "IDX_ACCOUNTS_BRANCH_ID_ACCOUNT_TYPE_BALANCE": {
+          "label_mean": 0.011594,
+          "prediction_mean": 0.023277
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS": {
+          "label_mean": 0.003201,
+          "prediction_mean": -0.022635
+        },
+        "IDX_CUSTOMERS_BRANCH_ID_KYC_STATUS_NAME": {
+          "label_mean": 0.002191,
+          "prediction_mean": 0.018927
+        },
+        "IDX_LOANS_STATUS_CUSTOMER_ID_PRINCIPAL": {
+          "label_mean": 0.0,
+          "prediction_mean": 0.042894
+        },
+        "IDX_LOANS_STATUS_PRINCIPAL": {
+          "label_mean": 0.01316,
+          "prediction_mean": -0.043965
+        },
+        "IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE": {
+          "label_mean": -0.000248,
+          "prediction_mean": 0.118144
+        },
+        "IDX_TRANSACTIONS_TXN_DATE_AMOUNT": {
+          "label_mean": 0.064476,
+          "prediction_mean": 0.175513
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT": {
+          "label_mean": 0.318534,
+          "prediction_mean": 0.34145
+        },
+        "IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID": {
+          "label_mean": 0.345086,
+          "prediction_mean": 0.313232
+        }
+      }
+    },
+    "rule_score_ranking": {
+      "ndcg_at_k": 0.937299,
+      "precision_at_k": 0.4,
+      "spearman": 0.20979
+    }
+  },
+  "samples": 36,
+  "status": "evaluated"
+}

@@ -351,8 +351,20 @@ def load_snapshot(path: Path | str | None = None) -> Optional[SchemaMetadata]:
     except (OSError, ValueError, TypeError) as exc:
         logger.warning("Ignoring unreadable schema metadata snapshot %s: %s", target, exc)
         return None
+    if not metadata.tables:
+        # A snapshot taken from an uninitialized database describes no tables. Using it would
+        # reject every candidate, so it is treated as missing rather than as a valid schema.
+        logger.warning("Ignoring schema metadata snapshot %s: it describes no tables", target)
+        return None
     metadata.source = "snapshot"
     return metadata
+
+
+def empty_database_message(database: str) -> str:
+    return (
+        f"Live MySQL database '{database}' has no tables; it has not been initialized. "
+        "Run scripts/run_local_pipeline.py --initialize-schema (destructive, see README) or load database/schema.sql."
+    )
 
 
 def _connect_primary_read_only(timeout_seconds: int = 3) -> Any:
@@ -368,6 +380,10 @@ def load_metadata(source: str | None = None, snapshot_path: Path | str | None = 
     """Load metadata from the configured source, degrading gracefully.
 
     ``auto`` tries live MySQL first (saving a snapshot), then the snapshot, then schema.sql.
+
+    A live database that contains no tables is never accepted as a schema and is
+    never saved as a snapshot: with ``mysql`` it raises, with ``auto`` it falls
+    through with a warning. A snapshot describing no tables is ignored the same way.
     """
 
     selected = (source or settings.metadata_source or "auto").lower()
@@ -380,15 +396,19 @@ def load_metadata(source: str | None = None, snapshot_path: Path | str | None = 
                 metadata = collect_mysql_metadata(connection, settings.db_name)
             finally:
                 connection.close()
+            if not metadata.tables:
+                raise RuntimeError(empty_database_message(settings.db_name))
             if save:
                 save_snapshot(metadata, snapshot_path)
             return metadata
-        except Exception as exc:  # connection, permission, or driver errors
-            message = f"Live MySQL metadata unavailable: {type(exc).__name__}: {exc}"
+        except Exception as exc:  # connection, permission, driver errors, or an uninitialized database
+            message = str(exc) if str(exc).startswith("Live MySQL database") else (
+                f"Live MySQL metadata unavailable: {type(exc).__name__}: {exc}"
+            )
             if selected == "mysql":
                 raise RuntimeError(message) from exc
             errors.append(message)
-            logger.info(message)
+            logger.warning(message)
 
     if selected in {"auto", "snapshot", "snapshot_or_schema"}:
         snapshot = load_snapshot(snapshot_path)
@@ -397,7 +417,7 @@ def load_metadata(source: str | None = None, snapshot_path: Path | str | None = 
             snapshot.warnings.append(f"Using metadata snapshot collected at {snapshot.collected_at}.")
             return snapshot
         if selected == "snapshot":
-            raise RuntimeError("Schema metadata snapshot not found")
+            raise RuntimeError("Schema metadata snapshot not found or it describes no tables")
 
     metadata = parse_schema_sql()
     metadata.warnings.extend(errors)

@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 MODEL_FILE = "index_ranker.joblib"
 METADATA_FILE = "index_ranker.json"
 EVALUATION_FILE = "evaluation.json"
+ARCHIVE_DIR = "archive"
 BASELINE_MODEL = "dummy_mean"
 
 
@@ -77,6 +78,41 @@ def candidate_models(random_state: int = 42) -> Dict[str, Pipeline]:
 
 def resolve_model_dir(model_dir: str | Path | None = None) -> Path:
     return Path(model_dir) if model_dir else settings.resolve_path(settings.model_dir)
+
+
+def archive_existing_artifacts(output_dir: Path) -> Optional[Path]:
+    """Move an existing model, metadata, and report into ``archive/<version>/`` before a new one is written.
+
+    Nothing is deleted: an earlier model stays inspectable and can be restored by
+    moving the three files back. The archive folder is named after the previous
+    model version, or after the report timestamp when no model was trained.
+    """
+
+    import shutil
+
+    existing = [output_dir / name for name in (MODEL_FILE, METADATA_FILE, EVALUATION_FILE) if (output_dir / name).exists()]
+    if not existing:
+        return None
+    label = None
+    for path, key in ((output_dir / METADATA_FILE, "model_version"), (output_dir / EVALUATION_FILE, "generated_at")):
+        if path.exists():
+            try:
+                label = json.loads(path.read_text(encoding="utf-8")).get(key)
+            except ValueError:
+                label = None
+            if label:
+                break
+    label = str(label or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")).replace(":", "").replace("-", "")
+    target = output_dir / ARCHIVE_DIR / label
+    suffix = 1
+    while target.exists():
+        suffix += 1
+        target = output_dir / ARCHIVE_DIR / f"{label}-{suffix}"
+    target.mkdir(parents=True)
+    for path in existing:
+        shutil.move(str(path), str(target / path.name))
+    logger.info("Archived previous model artifacts to %s", target)
+    return target
 
 
 def _write_json(path: Path, payload: Dict[str, Any]) -> None:
@@ -111,6 +147,7 @@ def train_and_evaluate(
 
     output_dir = resolve_model_dir(model_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    archived = archive_existing_artifacts(output_dir)
     min_samples = settings.ml_min_training_samples if min_samples is None else min_samples
     min_groups = settings.ml_min_training_groups if min_groups is None else min_groups
     trained_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -129,6 +166,7 @@ def train_and_evaluate(
         "minimums": {"samples": min_samples, "groups": min_groups},
         "feature_names": FEATURE_COLUMNS,
         "random_state": random_state,
+        "archived_previous": str(archived) if archived else None,
     }
 
     if n_samples < min_samples or n_groups < min_groups:

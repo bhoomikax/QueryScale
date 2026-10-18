@@ -30,7 +30,7 @@ import numpy as np
 
 from backend.config import settings
 from backend.services.artifact_store import sha256_file
-from backend.services.ml.dataset import LABEL_MEASURED
+from backend.services.ml.dataset import LABEL_MEASURED, LABEL_SYNTHETIC
 from backend.services.ml.features import FEATURE_COLUMNS, to_feature_frame
 from backend.services.ml.trainer import METADATA_FILE, MODEL_FILE, resolve_model_dir
 
@@ -94,7 +94,10 @@ def load_ranker(model_dir: str | Path | None = None, allow_synthetic: bool | Non
         return unusable("Model file checksum does not match its metadata; refusing to load it.")
     if metadata.get("feature_names") != FEATURE_COLUMNS:
         return unusable("Model feature schema does not match the current feature pipeline; retrain the model.")
-    if metadata.get("label_source") != LABEL_MEASURED and not allow:
+    label_source = metadata.get("label_source")
+    if label_source not in {LABEL_MEASURED, LABEL_SYNTHETIC}:
+        return unusable(f"Model provenance is missing or unknown (label_source={label_source!r}); refusing to use it.")
+    if label_source != LABEL_MEASURED and not allow:
         return unusable("Model was trained on synthetic demonstration labels and is not used for ranking.")
     if not metadata.get("suitable"):
         return unusable(metadata.get("suitability_reason") or "Model did not beat the baseline on held-out data.")

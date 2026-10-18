@@ -1,0 +1,58 @@
+{
+  "feature_names": [
+    "column_count",
+    "equality_prefix_length",
+    "has_range_column",
+    "covers_order_by",
+    "covers_group_by",
+    "is_covering",
+    "supporting_query_count",
+    "workload_share",
+    "time_share",
+    "log_avg_latency_ms",
+    "log_median_latency_ms",
+    "log_p95_latency_ms",
+    "where_usage_ratio",
+    "join_usage_ratio",
+    "order_usage_ratio",
+    "log_table_rows",
+    "leading_selectivity",
+    "log_leading_cardinality",
+    "write_ratio",
+    "existing_prefix_ratio",
+    "log_estimated_index_mib"
+  ],
+  "generated_at": "2026-10-14T17:20:35Z",
+  "groups": 0,
+  "label_source": "measured_benchmark",
+  "label_summary": null,
+  "limitations": [
+    "0 labeled samples across 0 candidates; at least 20 samples and 5 candidates are required for a defensible held-out evaluation.",
+    "No model was trained. Recommendations continue to use the rule-based ranking."
+  ],
+  "minimums": {
+    "groups": 5,
+    "samples": 20
+  },
+  "provenance": {
+    "benchmark_protocol_version": 2,
+    "dataset_signature": null,
+    "datasets": [],
+    "label_source": "measured_benchmark",
+    "records_excluded": {
+      "different_workload": 0
+    },
+    "records_total": 0,
+    "records_used": 0,
+    "run_ids": [],
+    "server_versions": [],
+    "strict_dataset": false,
+    "target_definition": "workload_benefit = sum over affected query templates q of n_q * (median_before_q - median_after_q) divided by sum over all templates of n_q * median_before_q, from paired before/after replays of the same seeded workload on the isolated test database. Affected templates are those whose post-index EXPLAIN uses the candidate index (supporting queries when EXPLAIN is unavailable).",
+    "workload_signature": null
+  },
+  "random_state": 42,
+  "samples": 0,
+  "status": "insufficient_data",
+  "target_definition": "workload_benefit = sum over affected query templates q of n_q * (median_before_q - median_after_q) divided by sum over all templates of n_q * median_before_q, from paired before/after replays of the same seeded workload on the isolated test database. Affected templates are those whose post-index EXPLAIN uses the candidate index (supporting queries when EXPLAIN is unavailable).",
+  "target_name": "workload_benefit"
+}

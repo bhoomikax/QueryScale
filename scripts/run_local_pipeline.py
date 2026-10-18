@@ -211,6 +211,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "accounts": args.accounts,
         "transactions": args.transactions,
         "loans": args.loans,
+        # The same --seed drives both the generated rows and the workload replay.
+        "seed": args.seed,
     }
 
     try:

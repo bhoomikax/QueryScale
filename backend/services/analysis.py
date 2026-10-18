@@ -15,28 +15,89 @@ logger = logging.getLogger(__name__)
 DEMO_MODEL_SUBDIR = "demo"
 
 
+class AnalysisError(RuntimeError):
+    """Analysis could not do useful work. ``code`` is reported in the job's error record."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def _csv_row_count(path) -> int:
+    import csv
+
+    if not path.exists():
+        return 0
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        return sum(1 for _ in csv.DictReader(handle))
+
+
 def run_analysis(params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Extract features, generate and score candidates, and rank recommendations."""
+    """Extract features, generate and score candidates, and rank recommendations.
+
+    Raises ``AnalysisError`` (so the job is FAILED, not COMPLETED) when the query
+    log is missing or empty or when no schema metadata is available. A completed
+    analysis that produced no recommendations carries ``warnings`` explaining why.
+    """
 
     params = params or {}
+    log_path = settings.resolve_path(settings.query_log_path)
+    if not log_path.exists():
+        raise AnalysisError("query_log_missing", f"Query log not found: {log_path}. Run scripts/workload.py first.")
+    log_rows = _csv_row_count(log_path)
+    if log_rows == 0:
+        raise AnalysisError("query_log_empty", f"Query log {log_path} has no rows. Run scripts/workload.py first.")
+
     metadata = load_metadata(source=params.get("metadata_source") or settings.metadata_source)
+    if not metadata.tables:
+        raise AnalysisError(
+            "schema_metadata_empty",
+            "No schema metadata is available (live database, snapshot, and schema.sql all yielded no tables); "
+            "candidates cannot be validated. " + "; ".join(metadata.warnings),
+        )
+
+    feature_path = settings.resolve_path(settings.feature_path)
+    candidate_path = settings.resolve_path(settings.candidate_path)
     recommendations = run_pipeline(
-        settings.resolve_path(settings.query_log_path),
-        settings.resolve_path(settings.feature_path),
-        settings.resolve_path(settings.candidate_path),
+        log_path,
+        feature_path,
+        candidate_path,
         settings.resolve_path(settings.recommendation_path),
         metadata=metadata,
         query_feature_path=settings.resolve_path(settings.query_feature_path),
         use_ml=bool(params.get("use_ml", True)),
     )
+    generated = _csv_row_count(feature_path)
+    scored = _csv_row_count(candidate_path)
+    warnings = list(metadata.warnings)
+    if generated == 0:
+        warnings.append(
+            f"No index candidates were generated from {log_rows} log rows. Check that the logged queries reference "
+            f"tables in the schema ({', '.join(sorted(metadata.tables)) or 'none'})."
+        )
+    elif scored == 0:
+        warnings.append(f"All {generated} candidates are covered by existing indexes or scored zero; nothing to recommend.")
+    elif not recommendations:
+        warnings.append(f"{scored} candidates were scored but none reached MEDIUM priority or a usable ML prediction.")
+
     summary = ranking_summary(recommendations)
     summary.update({
+        "query_log_rows": log_rows,
+        "candidates_generated": generated,
+        "candidates_scored": scored,
         "metadata_source": metadata.source,
         "metadata_collected_at": metadata.collected_at,
+        "metadata_tables": len(metadata.tables),
         "metadata_warnings": metadata.warnings,
+        "warnings": warnings,
         "top_candidate_id": recommendations[0]["candidate_id"] if recommendations else None,
     })
-    logger.info("Analysis completed: %s recommendations (%s ranking)", summary["count"], summary["ranking_method"])
+    logger.info(
+        "Analysis completed: %s recommendations from %s scored candidates (%s ranking, metadata: %s)",
+        summary["count"], scored, summary["ranking_method"] or "n/a", metadata.source,
+    )
+    for warning in warnings:
+        logger.warning("Analysis: %s", warning)
     return summary
 
 
