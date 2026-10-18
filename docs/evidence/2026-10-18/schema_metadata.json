@@ -1,0 +1,465 @@
+{
+  "collected_at": "2026-10-18T17:22:33Z",
+  "database": "queryscale",
+  "server_version": "8.4.11",
+  "source": "mysql",
+  "tables": {
+    "Accounts": {
+      "columns": {
+        "account_id": {
+          "auto_increment": true,
+          "cardinality": 15000,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "account_id",
+          "nullable": false,
+          "numeric_precision": 19
+        },
+        "account_type": {
+          "auto_increment": false,
+          "cardinality": 5,
+          "cardinality_source": "exact_count",
+          "char_max_length": 50,
+          "column_type": "varchar(50)",
+          "data_type": "varchar",
+          "name": "account_type",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "balance": {
+          "auto_increment": false,
+          "cardinality": 14996,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "decimal(18,2)",
+          "data_type": "decimal",
+          "name": "balance",
+          "nullable": false,
+          "numeric_precision": 18
+        },
+        "branch_id": {
+          "auto_increment": false,
+          "cardinality": 50,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "int",
+          "data_type": "int",
+          "name": "branch_id",
+          "nullable": false,
+          "numeric_precision": 10
+        },
+        "customer_id": {
+          "auto_increment": false,
+          "cardinality": 7755,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "customer_id",
+          "nullable": false,
+          "numeric_precision": 19
+        }
+      },
+      "data_bytes": 1589248,
+      "index_bytes": 1392640,
+      "indexes": [
+        {
+          "columns": [
+            "account_type"
+          ],
+          "name": "idx_accounts_account_type",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "branch_id"
+          ],
+          "name": "idx_accounts_branch_id",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "name": "idx_accounts_customer_id",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "account_id"
+          ],
+          "name": "PRIMARY",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "name": "Accounts",
+      "row_count": 15000,
+      "row_count_source": "exact_count"
+    },
+    "Branches": {
+      "columns": {
+        "branch_id": {
+          "auto_increment": true,
+          "cardinality": 50,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "int",
+          "data_type": "int",
+          "name": "branch_id",
+          "nullable": false,
+          "numeric_precision": 10
+        },
+        "branch_name": {
+          "auto_increment": false,
+          "cardinality": 20,
+          "cardinality_source": "exact_count",
+          "char_max_length": 150,
+          "column_type": "varchar(150)",
+          "data_type": "varchar",
+          "name": "branch_name",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "city": {
+          "auto_increment": false,
+          "cardinality": 19,
+          "cardinality_source": "exact_count",
+          "char_max_length": 100,
+          "column_type": "varchar(100)",
+          "data_type": "varchar",
+          "name": "city",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "ifsc_code": {
+          "auto_increment": false,
+          "cardinality": 50,
+          "cardinality_source": "exact_count",
+          "char_max_length": 20,
+          "column_type": "varchar(20)",
+          "data_type": "varchar",
+          "name": "ifsc_code",
+          "nullable": false,
+          "numeric_precision": null
+        }
+      },
+      "data_bytes": 16384,
+      "index_bytes": 32768,
+      "indexes": [
+        {
+          "columns": [
+            "city"
+          ],
+          "name": "idx_branches_city",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "branch_id"
+          ],
+          "name": "PRIMARY",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columns": [
+            "ifsc_code"
+          ],
+          "name": "uq_branches_ifsc",
+          "primary": false,
+          "unique": true
+        }
+      ],
+      "name": "Branches",
+      "row_count": 50,
+      "row_count_source": "exact_count"
+    },
+    "Customers": {
+      "columns": {
+        "branch_id": {
+          "auto_increment": false,
+          "cardinality": 50,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "int",
+          "data_type": "int",
+          "name": "branch_id",
+          "nullable": false,
+          "numeric_precision": 10
+        },
+        "customer_id": {
+          "auto_increment": true,
+          "cardinality": 10000,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "customer_id",
+          "nullable": false,
+          "numeric_precision": 19
+        },
+        "dob": {
+          "auto_increment": false,
+          "cardinality": 7138,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "date",
+          "data_type": "date",
+          "name": "dob",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "kyc_status": {
+          "auto_increment": false,
+          "cardinality": 4,
+          "cardinality_source": "exact_count",
+          "char_max_length": 30,
+          "column_type": "varchar(30)",
+          "data_type": "varchar",
+          "name": "kyc_status",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "name": {
+          "auto_increment": false,
+          "cardinality": 10000,
+          "cardinality_source": "exact_count",
+          "char_max_length": 150,
+          "column_type": "varchar(150)",
+          "data_type": "varchar",
+          "name": "name",
+          "nullable": false,
+          "numeric_precision": null
+        }
+      },
+      "data_bytes": 1589248,
+      "index_bytes": 589824,
+      "indexes": [
+        {
+          "columns": [
+            "branch_id"
+          ],
+          "name": "idx_customers_branch_id",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "kyc_status"
+          ],
+          "name": "idx_customers_kyc_status",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "name": "PRIMARY",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "name": "Customers",
+      "row_count": 10000,
+      "row_count_source": "exact_count"
+    },
+    "Loans": {
+      "columns": {
+        "customer_id": {
+          "auto_increment": false,
+          "cardinality": 3902,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "customer_id",
+          "nullable": false,
+          "numeric_precision": 19
+        },
+        "loan_id": {
+          "auto_increment": true,
+          "cardinality": 5000,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "loan_id",
+          "nullable": false,
+          "numeric_precision": 19
+        },
+        "loan_type": {
+          "auto_increment": false,
+          "cardinality": 5,
+          "cardinality_source": "exact_count",
+          "char_max_length": 50,
+          "column_type": "varchar(50)",
+          "data_type": "varchar",
+          "name": "loan_type",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "principal": {
+          "auto_increment": false,
+          "cardinality": 5000,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "decimal(18,2)",
+          "data_type": "decimal",
+          "name": "principal",
+          "nullable": false,
+          "numeric_precision": 18
+        },
+        "status": {
+          "auto_increment": false,
+          "cardinality": 4,
+          "cardinality_source": "exact_count",
+          "char_max_length": 30,
+          "column_type": "varchar(30)",
+          "data_type": "varchar",
+          "name": "status",
+          "nullable": false,
+          "numeric_precision": null
+        }
+      },
+      "data_bytes": 16384,
+      "index_bytes": 32768,
+      "indexes": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "name": "idx_loans_customer_id",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "status"
+          ],
+          "name": "idx_loans_status",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "loan_id"
+          ],
+          "name": "PRIMARY",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "name": "Loans",
+      "row_count": 5000,
+      "row_count_source": "exact_count"
+    },
+    "Transactions": {
+      "columns": {
+        "account_id": {
+          "auto_increment": false,
+          "cardinality": 14986,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "account_id",
+          "nullable": false,
+          "numeric_precision": 19
+        },
+        "amount": {
+          "auto_increment": false,
+          "cardinality": 98040,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "decimal(18,2)",
+          "data_type": "decimal",
+          "name": "amount",
+          "nullable": false,
+          "numeric_precision": 18
+        },
+        "txn_date": {
+          "auto_increment": false,
+          "cardinality": 731,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "date",
+          "data_type": "date",
+          "name": "txn_date",
+          "nullable": false,
+          "numeric_precision": null
+        },
+        "txn_id": {
+          "auto_increment": true,
+          "cardinality": 100000,
+          "cardinality_source": "exact_count",
+          "char_max_length": null,
+          "column_type": "bigint",
+          "data_type": "bigint",
+          "name": "txn_id",
+          "nullable": false,
+          "numeric_precision": 19
+        },
+        "txn_type": {
+          "auto_increment": false,
+          "cardinality": 5,
+          "cardinality_source": "exact_count",
+          "char_max_length": 30,
+          "column_type": "varchar(30)",
+          "data_type": "varchar",
+          "name": "txn_type",
+          "nullable": false,
+          "numeric_precision": null
+        }
+      },
+      "data_bytes": 16384,
+      "index_bytes": 49152,
+      "indexes": [
+        {
+          "columns": [
+            "account_id"
+          ],
+          "name": "idx_transactions_account_id",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "txn_date"
+          ],
+          "name": "idx_transactions_txn_date",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "txn_type",
+            "txn_date"
+          ],
+          "name": "idx_transactions_type_date",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "txn_id"
+          ],
+          "name": "PRIMARY",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "name": "Transactions",
+      "row_count": 100000,
+      "row_count_source": "exact_count"
+    }
+  },
+  "warnings": []
+}

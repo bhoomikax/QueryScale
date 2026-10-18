@@ -2,10 +2,24 @@
 
 This file records the first training run of the index-benefit model on **measured**
 benchmark labels. It is a record of what was observed on one machine, not a claim about
-general index quality. Numbers below are copied from `models/evaluation.json`,
-`models/index_ranker.json`, and `data/benchmark_history.jsonl` as they were after the run.
-Those three files are not committed (see `.gitignore`), so this document is the committed
-evidence.
+general index quality. Every number below is copied from a saved file; frozen copies of
+those files are committed under `docs/evidence/2026-10-18/` (the working copies in
+`data/` and `models/` are gitignored and change on every run).
+
+| Number in this document | Traceable to |
+| --- | --- |
+| Per-candidate benefits, index sizes, write probes | `docs/evidence/2026-10-18/benchmark_history.jsonl` (`summary.workload_benefit`, `index_size_bytes`, `write_overhead`), summarized in `benchmark_runs_summary.csv` |
+| Training-set counts, CV and held-out metrics, ranking comparison | `docs/evidence/2026-10-18/models/evaluation.json` |
+| Model version, selected algorithm, checksum, run IDs used | `docs/evidence/2026-10-18/models/index_ranker.json` |
+| Leave-one-candidate-out metrics | `docs/evidence/2026-10-18/models/evaluation_logo.json` |
+| Row counts | `docs/evidence/2026-10-18/schema_metadata.json` |
+| Synthetic demo metrics (for contrast only) | `docs/evidence/2026-10-18/models/demo/evaluation.json` |
+
+**Synthetic versus measured.** The model in `models/demo/` (2026-10-14) was trained on
+labels produced by a formula and reports held-out MAE 0.023 against a baseline of 0.044.
+Those numbers describe how well it learned the formula and say nothing about MySQL. They
+are not comparable with anything below and must not be quoted as index-quality results.
+The application refuses to rank with that model (`label_source: synthetic_demo`).
 
 ## Environment
 
@@ -106,12 +120,49 @@ Ranking comparison on the held-out rows (one dataset group, k = 5, relevance thr
 | Rule score | 0.932 | 0.60 | 0.474 |
 | ML prediction | 1.000 | 1.00 | 0.949 |
 
+## Leave-one-candidate-out check (added the same day)
+
+Three held-out candidates cannot support a general claim, so
+`scripts/evaluate_leave_one_out.py` re-evaluated the same 36 records by holding out each
+candidate in turn (12 folds). Every candidate's prediction therefore comes from a model
+that never saw any of its runs. The script trains nothing for production; the ridge model
+above remains the deployed one. "Per candidate" averages the three repeats of each
+candidate first, so the ranking metrics are over 12 candidates.
+
+| Model | MAE per candidate | Spearman | NDCG@5 | Precision@5 |
+| --- | --- | --- | --- | --- |
+| dummy_mean (baseline) | 0.097 | -1.00 | 0.008 | 0.0 |
+| ridge (deployed) | 0.039 | 0.29 | 0.966 | 0.6 |
+| decision_tree | 0.015 | 0.07 | 0.915 | 0.4 |
+| random_forest | 0.027 | 0.47 | 0.966 | 0.6 |
+| gradient_boosting | 0.018 | 0.33 | 0.958 | 0.6 |
+| rule score (no training) | n/a | 0.21 | 0.937 | 0.4 |
+
+How to read this honestly:
+
+- Only 3 of the 12 candidates have a benefit of at least 5%, so **0.6 is the maximum
+  possible Precision@5**. Ridge, random forest, and gradient boosting all reach that
+  ceiling out-of-fold: every candidate worth recommending lands in their top five. The
+  rule score places two of the three there.
+- The Spearman values are low for every method because nine candidates sit between 0%
+  and 1.3% benefit, where the differences are within measurement noise. No method can
+  order those reliably, and the metric mostly reflects that noise.
+- Predicting the *size* of the benefit is where the models clearly beat the mean baseline
+  (MAE 0.015 to 0.039 versus 0.097). Tree models predict magnitudes better than ridge on
+  this data; the project's selection rule (lowest grouped CV MAE on the training split)
+  chose ridge, and with 9 training candidates that choice is not robust.
+- The supportable claim is therefore: *on this workload and dataset, the models separate
+  high-benefit from negligible candidates out-of-fold and estimate the benefit magnitude
+  far better than a mean predictor; their ranking advantage over the rule score is small.*
+  No claim about other workloads or databases is supported.
+
 ## Limitations (read before quoting any number)
 
-1. **Small sample.** 12 distinct candidates, 3 held out. The held-out set has 9 rows but
-   only 3 independent candidates; the three repeats of each candidate are near-identical,
-   so the ranking metrics above are computed over effectively 3 items. The report itself
-   flags the held-out metrics as preliminary and high-variance.
+1. **Small sample.** 12 distinct candidates, 3 held out in the training report. The
+   held-out set has 9 rows but only 3 independent candidates; the three repeats of each
+   candidate are near-identical, so the ranking metrics in the training report are
+   computed over effectively 3 items. The leave-one-out section above is the better
+   summary of out-of-sample behaviour, and it still covers only 12 candidates.
 2. **One workload, one dataset, one machine.** All labels come from the same 14 templates
    on the same seeded data without concurrent load. The model has not been tested on a
    different workload or database and may not transfer.
@@ -124,6 +175,11 @@ Ranking comparison on the held-out rows (one dataset group, k = 5, relevance thr
 6. Random forest and gradient boosting had lower held-out MAE than ridge but higher CV
    MAE; with 9 training candidates the CV estimate is itself unstable. Selection by CV is
    the project's protocol and was applied as written.
+7. **Exact re-seeding is not bit-for-bit.** `scripts/seed.py` had no random seed when
+   this data was generated. Re-running the pipeline gives the same row counts (same
+   dataset signature) but different row values and somewhat different timings. A `--seed`
+   option was added afterwards for future runs. Training from the saved history file is
+   deterministic (`random_state=42`).
 
 A credible next step is to repeat the collection on at least one other dataset size and
 one other workload mix, so the model is evaluated on candidates and workloads it has not

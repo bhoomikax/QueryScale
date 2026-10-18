@@ -21,8 +21,8 @@ venv/
 *.egg-info/
 
 # Generated runtime state and model artifacts
-runtime/
-models/
+/runtime/
+/models/
 
 # Local benchmark history, metadata snapshots, backups, and job stores
 data/benchmark_history.jsonl

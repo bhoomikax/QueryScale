@@ -1,0 +1,154 @@
+{
+  "artifact_file": "index_ranker.joblib",
+  "artifact_sha256": "ca8a589cf09ee9c0da1746450f9684cf271a097163835cb5c100489be871b85f",
+  "feature_descriptions": {
+    "column_count": "Number of index columns",
+    "covers_group_by": "1 if index order satisfies GROUP BY",
+    "covers_order_by": "1 if index order satisfies ORDER BY after the equality prefix",
+    "equality_prefix_length": "Leading index columns matched by equality/IN predicates",
+    "existing_prefix_ratio": "Leading columns already indexed by an existing index / column count",
+    "has_range_column": "1 if the column after the equality prefix is a range predicate",
+    "is_covering": "1 if the index contains every column the supporting query reads",
+    "join_usage_ratio": "Supporting executions using the leading column as a join key / supporting executions",
+    "leading_selectivity": "Distinct leading-column values / table rows, missing if unavailable",
+    "log_avg_latency_ms": "ln(1 + mean latency of supporting executions in ms)",
+    "log_estimated_index_mib": "ln(1 + heuristic index size estimate in MiB), missing if unavailable",
+    "log_leading_cardinality": "log10(1 + distinct leading-column values), missing if unavailable",
+    "log_median_latency_ms": "ln(1 + execution-weighted median of supporting query medians)",
+    "log_p95_latency_ms": "ln(1 + max supporting P95), missing when fewer than 20 samples",
+    "log_table_rows": "log10(1 + table row count), missing if unavailable",
+    "order_usage_ratio": "Supporting executions whose ORDER BY the index satisfies / supporting executions",
+    "supporting_query_count": "Distinct query templates the candidate supports",
+    "time_share": "Supporting latency / total latency in the query log",
+    "where_usage_ratio": "Supporting executions using the columns in WHERE / supporting executions",
+    "workload_share": "Supporting executions / all executions in the query log",
+    "write_ratio": "Write executions / all executions on the table in the captured workload"
+  },
+  "feature_importances": null,
+  "feature_names": [
+    "column_count",
+    "equality_prefix_length",
+    "has_range_column",
+    "covers_order_by",
+    "covers_group_by",
+    "is_covering",
+    "supporting_query_count",
+    "workload_share",
+    "time_share",
+    "log_avg_latency_ms",
+    "log_median_latency_ms",
+    "log_p95_latency_ms",
+    "where_usage_ratio",
+    "join_usage_ratio",
+    "order_usage_ratio",
+    "log_table_rows",
+    "leading_selectivity",
+    "log_leading_cardinality",
+    "write_ratio",
+    "existing_prefix_ratio",
+    "log_estimated_index_mib"
+  ],
+  "feature_schema_version": 1,
+  "label_source": "measured_benchmark",
+  "metrics": {
+    "baseline_model": "dummy_mean",
+    "cv_mae": {
+      "decision_tree": 0.074807,
+      "dummy_mean": 0.071715,
+      "gradient_boosting": 0.05921,
+      "random_forest": 0.057538,
+      "ridge": 0.051611
+    },
+    "holdout": {
+      "decision_tree": {
+        "mae": 0.103694,
+        "rmse": 0.163012
+      },
+      "dummy_mean": {
+        "mae": 0.111239,
+        "rmse": 0.160854
+      },
+      "gradient_boosting": {
+        "mae": 0.027011,
+        "rmse": 0.034982
+      },
+      "random_forest": {
+        "mae": 0.028824,
+        "rmse": 0.030619
+      },
+      "ridge": {
+        "mae": 0.044412,
+        "rmse": 0.061793
+      }
+    },
+    "test_samples": 9,
+    "train_samples": 27
+  },
+  "model_name": "ridge",
+  "model_version": "v20261018T172058Z-e813dcc956e5",
+  "provenance": {
+    "benchmark_protocol_version": 2,
+    "dataset_signature": null,
+    "datasets": [
+      "73be471999e9e1bf"
+    ],
+    "label_source": "measured_benchmark",
+    "records_excluded": {
+      "different_workload": 1,
+      "not_completed": 1
+    },
+    "records_total": 38,
+    "records_used": 36,
+    "run_ids": [
+      "BR-20261018T171247Z-ef1c84e9",
+      "BR-20261018T171258Z-d94e66e8",
+      "BR-20261018T171310Z-9716ce31",
+      "BR-20261018T171323Z-5a4da857",
+      "BR-20261018T171336Z-a4729036",
+      "BR-20261018T171349Z-497e48c8",
+      "BR-20261018T171402Z-f546db5a",
+      "BR-20261018T171415Z-7ebe5c6d",
+      "BR-20261018T171427Z-eb2f43c9",
+      "BR-20261018T171439Z-14bbd414",
+      "BR-20261018T171451Z-bbfdcc9e",
+      "BR-20261018T171504Z-e2aa93c5",
+      "BR-20261018T171517Z-e745afd8",
+      "BR-20261018T171529Z-c13cb89a",
+      "BR-20261018T171541Z-2bc20a63",
+      "BR-20261018T171553Z-321ddb72",
+      "BR-20261018T171606Z-59800914",
+      "BR-20261018T171618Z-d38990d4",
+      "BR-20261018T171630Z-c0670c6d",
+      "BR-20261018T171643Z-2ea17a9e",
+      "BR-20261018T171655Z-aece3406",
+      "BR-20261018T171712Z-9e4833ff",
+      "BR-20261018T171725Z-0fbf5ae5",
+      "BR-20261018T171741Z-33a168dc",
+      "BR-20261018T171821Z-881c138e",
+      "BR-20261018T171832Z-c2298efd",
+      "BR-20261018T171844Z-c78a046a",
+      "BR-20261018T171856Z-c5579c00",
+      "BR-20261018T171909Z-7be4a29f",
+      "BR-20261018T171922Z-d999bab4",
+      "BR-20261018T171935Z-345608b8",
+      "BR-20261018T171947Z-dbe06a31",
+      "BR-20261018T171959Z-119bc3a2",
+      "BR-20261018T172011Z-147a65fb",
+      "BR-20261018T172023Z-2dfd2f64",
+      "BR-20261018T172034Z-18614cb7"
+    ],
+    "server_versions": [
+      "8.4.11"
+    ],
+    "strict_dataset": false,
+    "target_definition": "workload_benefit = sum over affected query templates q of n_q * (median_before_q - median_after_q) divided by sum over all templates of n_q * median_before_q, from paired before/after replays of the same seeded workload on the isolated test database. Affected templates are those whose post-index EXPLAIN uses the candidate index (supporting queries when EXPLAIN is unavailable).",
+    "workload_signature": "ce72eafb9ed1603c"
+  },
+  "refit_on_all_data": true,
+  "sklearn_version": "1.9.1",
+  "suitability_reason": "Held-out MAE 0.0444 beats the mean baseline 0.1112.",
+  "suitable": true,
+  "target_definition": "workload_benefit = sum over affected query templates q of n_q * (median_before_q - median_after_q) divided by sum over all templates of n_q * median_before_q, from paired before/after replays of the same seeded workload on the isolated test database. Affected templates are those whose post-index EXPLAIN uses the candidate index (supporting queries when EXPLAIN is unavailable).",
+  "target_name": "workload_benefit",
+  "trained_at": "2026-10-18T17:20:58Z"
+}

@@ -188,6 +188,18 @@ class BenchmarkJobTests(unittest.TestCase):
         self.assertIsNone(job["result"])
 
 
+class SeedDeterminismTests(unittest.TestCase):
+    def test_seeded_dataset_generation_is_reproducible(self):
+        from scripts.seed import generate_dataset
+
+        config = {"branches": 3, "customers": 20, "accounts": 30, "transactions": 50, "loans": 10, "seed": 7}
+        first, second = generate_dataset(config), generate_dataset(config)
+        self.assertEqual(first, second)
+        self.assertEqual(len(first["transactions"]), 50)
+        different = generate_dataset({**config, "seed": 8})
+        self.assertNotEqual(first["transactions"], different["transactions"])
+
+
 class ModelArtifactTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

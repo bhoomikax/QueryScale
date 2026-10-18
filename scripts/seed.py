@@ -55,6 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--accounts", type=int, default=DEFAULT_CONFIG["accounts"], help="Number of account rows to generate.")
     parser.add_argument("--transactions", type=int, default=DEFAULT_CONFIG["transactions"], help="Number of transaction rows to generate.")
     parser.add_argument("--loans", type=int, default=DEFAULT_CONFIG["loans"], help="Number of loan rows to generate.")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducible rows (default: unseeded).")
     parser.add_argument("--no-reset", action="store_true", help="Do not clear existing data before insertion.")
     parser.add_argument("--dry-run", action="store_true", help="Print the planned dataset without writing to MySQL.")
     return parser.parse_args()
@@ -154,6 +155,10 @@ def generate_loans(loan_count: int, customer_count: int) -> List[Tuple[int, str,
 
 
 def generate_dataset(config: dict) -> dict:
+    """Generate all five tables. ``config["seed"]`` (optional) makes the rows reproducible."""
+
+    if config.get("seed") is not None:
+        random.seed(int(config["seed"]))
     return {
         "branches": generate_branches(config["branches"]),
         "customers": generate_customers(config["customers"], config["branches"]),
@@ -195,6 +200,7 @@ def main() -> None:
         "accounts": args.accounts,
         "transactions": args.transactions,
         "loans": args.loans,
+        "seed": args.seed,
     }
 
     if args.dry_run:

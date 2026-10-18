@@ -31,28 +31,50 @@ class CLIIntegrationTests(unittest.TestCase):
                     "join_columns",
                     "order_columns",
                 ])
-                writer.writerow([
-                    "Q001",
-                    "SELECT * FROM Loans WHERE loan_status = 'ACTIVE' ORDER BY branch_id DESC;",
-                    "2025-01-01T00:00:00Z",
-                    "40.0",
-                    "HIGH",
-                    "Loans",
-                    "loan_status",
-                    "",
-                    "branch_id",
-                ])
+                # Loans has columns loan_id, customer_id, loan_type, principal, status (database/schema.sql).
+                for i in range(6):
+                    writer.writerow([
+                        "Q009",
+                        "SELECT loan_id FROM Loans WHERE status = 'ACTIVE' ORDER BY principal DESC LIMIT 50;",
+                        f"2025-01-01T00:00:{i:02d}Z",
+                        "40.0",
+                        "HIGH",
+                        "Loans",
+                        "status",
+                        "",
+                        "principal",
+                    ])
 
             exit_code = main([
                 "--log-path", str(log_path),
                 "--feature-path", str(feature_path),
                 "--candidate-path", str(candidate_path),
                 "--recommendation-path", str(recommendation_path),
+                "--metadata-source", "schema",
+                "--no-ml",
             ])
 
             self.assertEqual(exit_code, 0)
-            self.assertTrue(recommendation_path.exists())
-            self.assertGreater(recommendation_path.stat().st_size, 0)
+            for path in (feature_path, candidate_path, recommendation_path):
+                self.assertTrue(path.exists(), path)
+
+            with candidate_path.open("r", newline="", encoding="utf-8") as handle:
+                candidates = list(csv.DictReader(handle))
+            self.assertGreater(len(candidates), 0, "a valid query on real schema columns must yield candidates")
+            for required in ("candidate_id", "table", "columns", "rule_score", "priority", "recommended_action", "reason"):
+                self.assertIn(required, candidates[0])
+            self.assertTrue(all(row["table"] == "Loans" for row in candidates))
+            self.assertTrue(all(row["candidate_id"].startswith("IDX_LOANS_") for row in candidates))
+            self.assertTrue(any("status" in row["columns"] for row in candidates), "status is the equality column")
+            self.assertTrue(all(row["recommended_action"].startswith("CREATE INDEX") for row in candidates))
+
+            with recommendation_path.open("r", newline="", encoding="utf-8") as handle:
+                recommendations = list(csv.DictReader(handle))
+            self.assertGreater(len(recommendations), 0)
+            self.assertEqual(recommendations[0]["rank"], "1")
+            self.assertEqual(recommendations[0]["ranking_method"], "rule")
+            self.assertIn(recommendations[0]["priority"], {"high", "medium"})
+            self.assertIn("status", recommendations[0]["columns"])
 
 
 if __name__ == "__main__":
