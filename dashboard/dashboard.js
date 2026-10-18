@@ -471,10 +471,17 @@ function describeJob(job) {
     return "Analysis has not been run from the dashboard.";
   }
   if (job.status === "FAILED") {
-    return `Analysis failed: ${(job.error && job.error.message) || "unknown error"}`;
+    const code = job.error && job.error.code ? ` [${job.error.code}]` : "";
+    return `Analysis failed${code}: ${(job.error && job.error.message) || "unknown error"}`;
   }
   if (job.status === "COMPLETED" && job.result) {
-    return `Analysis completed ${job.finished_at} · ${job.result.count} recommendations · ${job.result.ranking_method || "rule"} ranking · metadata from ${job.result.metadata_source}`;
+    const warnings = Array.isArray(job.result.warnings) && job.result.warnings.length
+      ? ` · Warning: ${job.result.warnings.join(" ")}`
+      : "";
+    const counts = job.result.candidates_scored !== undefined
+      ? ` · ${job.result.candidates_scored} scored candidates`
+      : "";
+    return `Analysis completed ${job.finished_at} · ${job.result.count} recommendations${counts} · ${job.result.ranking_method || "rule"} ranking · metadata from ${job.result.metadata_source}${warnings}`;
   }
   return `Analysis ${job.status.toLowerCase()} (${job.job_id})`;
 }

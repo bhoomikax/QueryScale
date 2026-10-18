@@ -4,11 +4,15 @@ import unittest
 from pathlib import Path
 
 from backend.services.feature_extractor import extract_features
+from helpers import patched_settings
 
 
 class FeatureExtractorTests(unittest.TestCase):
     def test_extract_features_generates_aggregated_candidates(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
+        # Isolate from any local metadata snapshot: the schema comes from database/schema.sql.
+        with tempfile.TemporaryDirectory() as tmpdir, patched_settings(
+            metadata_source="schema", schema_metadata_path=str(Path(tmpdir) / "missing_snapshot.json")
+        ):
             log_path = Path(tmpdir) / "query_logs.csv"
             output_path = Path(tmpdir) / "candidate_features.csv"
 

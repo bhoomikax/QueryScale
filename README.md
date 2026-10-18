@@ -238,6 +238,29 @@ workload_benefit = Σ_{q ∈ S} n_q · (median_before_q − median_after_q)  /  
 
 **Synthetic demo**: `py scripts/train_model.py --synthetic-demo` trains on formula-generated labels into `models/demo/`. It verifies the code path only. It is never used for ranking, and its metrics say nothing about real recommendation quality.
 
+### Reproducing the measured ML experiment
+
+All commands run on the host against the Docker MySQL (`.env` with `DB_PORT=3307`). Steps 1 and 2 are destructive for `DB_NAME` and `DB_TEST_NAME` only.
+
+```powershell
+# 1. Schema, seed (50 branches, 10k customers, 15k accounts, 100k transactions, 5k loans),
+#    200-iteration workload, live metadata, candidates, test-database clone, one benchmark
+py scripts/run_local_pipeline.py --initialize-schema --iterations 200 --seed 42
+
+# 2. Measured labels: every scored candidate, same workload signature each pass.
+#    Repeat the command to add passes; repeated runs of one candidate share a group.
+py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
+py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
+
+# 3. Train from measured history only, then inspect
+py scripts/train_model.py
+Get-Content models\evaluation.json
+Get-Content models\index_ranker.json
+Invoke-RestMethod http://localhost:8000/api/ml/model | ConvertTo-Json -Depth 6
+```
+
+Only runs whose `workload.signature` matches the most common signature are combined (same templates, iterations, seed, repeats, protocol). Runs with a different `repeats` value, such as the single `repeats=1` run from step 1, stay in the history but are excluded from training and listed under `records_excluded`. Training refuses to run below `ML_MIN_TRAINING_SAMPLES` (20) rows or `ML_MIN_TRAINING_GROUPS` (5) candidates. Previous `models/evaluation.json` and `models/index_ranker.*` files are moved to `models/archive/` before a new model is written. The experiment record for this repository's own run is in `docs/ml-experiment-2026-10-18.md`.
+
 ## API
 
 | Endpoint | Purpose |
