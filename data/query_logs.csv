@@ -1,101 +1,201 @@
-query_id,query_template,timestamp,execution_time_ms,frequency,tables,where_columns,join_columns,order_columns
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,2.08,MEDIUM,Transactions,account_id,,txn_date
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.687,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,41.751,HIGH,Transactions,txn_date,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,18.85,HIGH,Transactions,txn_date,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,2.053,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,4.291,HIGH,Transactions,txn_date,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.208,MEDIUM,Loans,customer_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.037,MEDIUM,Loans,customer_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.061,MEDIUM,Loans,customer_id,,
-Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-05T12:55:47Z,2.948,LOW,Customers,branch_id,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.471,MEDIUM,Transactions,account_id,,txn_date
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.141,MEDIUM,Loans,customer_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.146,HIGH,Transactions,account_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.032,HIGH,Transactions,account_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.065,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,9.013,HIGH,Transactions,txn_date,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,21.583,HIGH,Transactions,txn_date,,
-Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-05T12:55:47Z,3.126,LOW,Customers,branch_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.229,HIGH,Transactions,account_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.396,HIGH,Transactions,account_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.313,MEDIUM,Loans,customer_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,10.259,HIGH,Transactions,txn_date,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.615,MEDIUM,Loans,customer_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.384,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.527,MEDIUM,Loans,customer_id,,
-Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-05T12:55:47Z,2.346,LOW,Customers,branch_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.355,MEDIUM,Loans,customer_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,2.809,HIGH,Transactions,txn_date,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.571,MEDIUM,Transactions,account_id,,txn_date
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.159,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.334,MEDIUM,Transactions,account_id,,txn_date
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,16.911,HIGH,Transactions,txn_date,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,16.336,HIGH,Transactions,txn_date,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.528,HIGH,Transactions,account_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.085,MEDIUM,Loans,customer_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,16.567,HIGH,Transactions,txn_date,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.527,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,21.031,HIGH,Transactions,txn_date,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.658,MEDIUM,Loans,customer_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.08,MEDIUM,Loans,customer_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,13.393,HIGH,Transactions,txn_date,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.736,MEDIUM,Loans,customer_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.681,HIGH,Transactions,account_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.471,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,23.272,HIGH,Transactions,txn_date,,
-Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-05T12:55:47Z,3.383,LOW,Customers,branch_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.375,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,13.873,HIGH,Transactions,txn_date,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,4.915,HIGH,Transactions,txn_date,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.215,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.255,MEDIUM,Transactions,account_id,,txn_date
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,0.993,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,20.614,HIGH,Transactions,txn_date,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,21.096,HIGH,Transactions,txn_date,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.669,HIGH,Transactions,account_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.286,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.173,HIGH,Transactions,account_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,0.954,MEDIUM,Loans,customer_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,12.564,HIGH,Transactions,txn_date,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.524,MEDIUM,Loans,customer_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.264,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.108,MEDIUM,Transactions,account_id,,txn_date
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.083,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-05T12:55:47Z,2.493,LOW,Customers,branch_id,,
-Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-05T12:55:47Z,2.099,LOW,Customers,branch_id,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.489,MEDIUM,Transactions,account_id,,txn_date
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.215,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,12.73,HIGH,Transactions,txn_date,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.363,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.37,HIGH,Transactions,account_id,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.434,MEDIUM,Transactions,account_id,,txn_date
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.021,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.059,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.055,MEDIUM,Loans,customer_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.057,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,3.977,HIGH,Transactions,txn_date,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.383,HIGH,Transactions,account_id,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.056,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.066,MEDIUM,Loans,customer_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.422,HIGH,Transactions,account_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.273,MEDIUM,Loans,customer_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.213,MEDIUM,Loans,customer_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,18.753,HIGH,Transactions,txn_date,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,1.658,MEDIUM,Loans,customer_id,,
-Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-05T12:55:47Z,0.998,MEDIUM,Loans,customer_id,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.129,MEDIUM,Transactions,account_id,,txn_date
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.151,HIGH,Transactions,account_id,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.433,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,28.99,HIGH,Transactions,txn_date,,
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,3.128,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.586,HIGH,Transactions,account_id,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.842,MEDIUM,Transactions,account_id,,txn_date
-Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-05T12:55:47Z,1.303,MEDIUM,Customers;Accounts,customer_id,customer_id,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,1.329,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,24.484,HIGH,Transactions,txn_date,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,2.216,HIGH,Transactions,account_id,,
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,4.225,HIGH,Transactions,txn_date,,
-Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-05T12:55:47Z,1.431,MEDIUM,Transactions,account_id,,txn_date
-Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-05T12:55:47Z,13.036,HIGH,Transactions,txn_date,,
-Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-05T12:55:47Z,2.063,HIGH,Transactions,account_id,,
+query_id,query_template,timestamp,execution_time_ms,frequency,tables,where_columns,join_columns,order_columns,rows_returned,rows_examined
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:36Z,2.395,HIGH,Transactions,account_id,,,6,6
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:36Z,2.491,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:36Z,2.172,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.849,HIGH,Transactions,account_id,,,7,7
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,2.081,MEDIUM,Transactions,account_id,,txn_date,10,20
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.623,HIGH,Transactions,account_id,,,9,9
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,1.709,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:37Z,1.938,LOW,Accounts,account_id,,,,1
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.775,HIGH,Transactions,account_id,,,10,10
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,3.03,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:37Z,1.832,LOW,Accounts,account_id,,,,1
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,1.956,MEDIUM,Transactions,account_id,,txn_date,3,6
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,43.149,MEDIUM,Transactions,txn_type;amount,,,562,20000
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:37Z,3.328,MEDIUM,Loans,customer_id,,,0,0
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,1.656,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:37Z,1.634,MEDIUM,Loans,customer_id,,,0,0
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,2.196,HIGH,Transactions,account_id,,,8,8
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,2.706,MEDIUM,Transactions,account_id,,txn_date,9,18
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:37Z,1.6,MEDIUM,Loans,customer_id,,,0,0
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,1.854,MEDIUM,Transactions,account_id,,txn_date,5,10
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:37Z,1.699,LOW,Accounts,account_id,,,,1
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:37Z,31.919,HIGH,Transactions,txn_date,,,2043,2043
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:37Z,36.224,HIGH,Transactions,txn_date,,,2342,2342
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:37Z,5.184,MEDIUM,Loans,status,,principal,50,1300
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,45.118,MEDIUM,Transactions,txn_type;amount,,,925,20000
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,2.097,HIGH,Transactions,account_id,,,7,7
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:37Z,1.66,MEDIUM,Loans,customer_id,,,1,1
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.531,HIGH,Transactions,account_id,,,5,5
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:37Z,5.294,HIGH,Transactions,txn_date,,,278,278
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:37Z,6.979,MEDIUM,Accounts,branch_id;account_type,,,51,3214
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,2.499,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:37Z,1.759,MEDIUM,Loans,customer_id,,,0,0
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,67.807,MEDIUM,Transactions,txn_type;amount,,,7502,20000
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,46.821,MEDIUM,Transactions,txn_type;amount,,,3065,20000
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,2.035,HIGH,Transactions,account_id,,,6,6
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,2.578,MEDIUM,Customers;Accounts,customer_id,customer_id,,3,3
+Q012,"SELECT account_id, customer_id FROM Accounts WHERE balance BETWEEN %s AND %s;",2026-10-18T17:10:37Z,4.58,LOW,Accounts,balance,,,106,15000
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,41.204,MEDIUM,Transactions,txn_type;amount,,,2720,20000
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,46.547,MEDIUM,Transactions,txn_type;amount,,,4741,20000
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,2.412,MEDIUM,Transactions,account_id,,txn_date,6,12
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,2.201,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:37Z,4.343,MEDIUM,Accounts,branch_id;account_type,,,55,3315
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,1.651,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:37Z,5.465,MEDIUM,Loans,status,,principal,50,1300
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,1.638,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q012,"SELECT account_id, customer_id FROM Accounts WHERE balance BETWEEN %s AND %s;",2026-10-18T17:10:37Z,5.708,LOW,Accounts,balance,,,113,15000
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:37Z,6.21,LOW,Transactions,txn_date,,month,1,1556
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,1.503,MEDIUM,Customers;Accounts,customer_id,customer_id,,3,3
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,67.978,MEDIUM,Transactions,txn_type;amount,,,6253,20000
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,43.262,MEDIUM,Transactions,txn_type;amount,,,3108,20000
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:37Z,4.102,MEDIUM,Loans,status,,principal,50,1300
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:37Z,1.544,MEDIUM,Loans,customer_id,,,0,0
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:37Z,1.413,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q012,"SELECT account_id, customer_id FROM Accounts WHERE balance BETWEEN %s AND %s;",2026-10-18T17:10:37Z,5.069,LOW,Accounts,balance,,,97,15000
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.575,HIGH,Transactions,account_id,,,8,8
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.61,HIGH,Transactions,account_id,,,3,3
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,41.765,MEDIUM,Transactions,txn_type;amount,,,2820,20000
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:37Z,5.106,MEDIUM,Loans,status,,principal,50,1300
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:37Z,33.058,HIGH,Transactions,txn_date,,,3046,3046
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:37Z,4.616,MEDIUM,Loans,status,,principal,50,1300
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:37Z,1.65,LOW,Accounts,account_id,,,,1
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:37Z,4.563,MEDIUM,Loans,status,,principal,50,1300
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:37Z,1.66,HIGH,Transactions,account_id,,,12,12
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:37Z,60.623,MEDIUM,Transactions,txn_type;amount,,,6160,20000
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:37Z,1.917,MEDIUM,Transactions,account_id,,txn_date,10,20
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:37Z,3.597,MEDIUM,Accounts,branch_id;account_type,,,83,3287
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:37Z,3.025,MEDIUM,Accounts,branch_id;account_type,,,52,3252
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:37Z,41.028,HIGH,Transactions,txn_date,,,2855,2855
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:38Z,39.761,LOW,Transactions,txn_date,,month,3,9401
+Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-18T17:10:38Z,5.97,LOW,Customers,branch_id,,,213,213
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:38Z,59.679,MEDIUM,Transactions,txn_type;amount,,,6308,20000
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:38Z,1.708,LOW,Accounts,account_id,,,,1
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,1.554,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,1.776,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-18T17:10:38Z,4.344,LOW,Customers,branch_id,,,222,222
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,3.66,MEDIUM,Accounts,branch_id;account_type,,,60,3292
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,1.855,HIGH,Transactions,account_id,,,5,5
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:38Z,3.185,MEDIUM,Loans,customer_id,,,0,0
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,2.657,MEDIUM,Transactions,account_id,,txn_date,1,2
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:38Z,4.321,MEDIUM,Loans,status,,principal,50,1300
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,1.928,HIGH,Transactions,account_id,,,2,2
+Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-18T17:10:38Z,4.183,LOW,Customers,branch_id,,,196,196
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.081,HIGH,Transactions,account_id,,,6,6
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:38Z,2.318,LOW,Accounts,account_id,,,,1
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:38Z,2.525,MEDIUM,Loans,customer_id,,,1,1
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:38Z,1.575,LOW,Accounts,account_id,,,,1
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,1.574,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:38Z,77.995,MEDIUM,Transactions,txn_type;amount,,,6985,20000
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,4.877,MEDIUM,Accounts,branch_id;account_type,,,65,3298
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,3.934,MEDIUM,Accounts,branch_id;account_type,,,56,3268
+Q012,"SELECT account_id, customer_id FROM Accounts WHERE balance BETWEEN %s AND %s;",2026-10-18T17:10:38Z,6.51,LOW,Accounts,balance,,,259,15000
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.199,HIGH,Transactions,account_id,,,13,13
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,1.891,MEDIUM,Transactions,account_id,,txn_date,5,10
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,1.893,MEDIUM,Transactions,account_id,,txn_date,5,10
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:38Z,4.618,MEDIUM,Loans,status,,principal,50,1300
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,2.058,MEDIUM,Transactions,account_id,,txn_date,6,12
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,1.624,HIGH,Transactions,account_id,,,2,2
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,1.693,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:38Z,43.963,HIGH,Transactions,txn_date,,,4274,4274
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.566,HIGH,Transactions,account_id,,,7,7
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:38Z,63.778,MEDIUM,Transactions,txn_type;amount,,,4542,20000
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:38Z,22.086,LOW,Transactions,txn_date,,month,2,6436
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:38Z,35.687,HIGH,Transactions,txn_date,,,2285,2285
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,4.775,MEDIUM,Accounts,branch_id;account_type,,,54,3281
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,8.249,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,1.751,HIGH,Transactions,account_id,,,3,3
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:38Z,2.379,MEDIUM,Loans,customer_id,,,0,0
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,3.241,MEDIUM,Accounts,branch_id;account_type,,,69,3321
+Q014,"INSERT INTO Transactions (account_id, amount, txn_type, txn_date) VALUES (%s, %s, %s, %s);",2026-10-18T17:10:38Z,1.642,LOW,Transactions,,,,,0
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,1.735,HIGH,Transactions,account_id,,,5,5
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:38Z,16.402,HIGH,Transactions,txn_date,,,813,813
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,2.189,MEDIUM,Transactions,account_id,,txn_date,3,6
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,3.54,MEDIUM,Customers;Accounts,customer_id,customer_id,,6,6
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:38Z,3.536,MEDIUM,Loans,status,,principal,50,1300
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:38Z,13.871,LOW,Transactions,txn_date,,month,1,2557
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,1.695,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,8.638,MEDIUM,Accounts,branch_id;account_type,,,59,3289
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,1.967,MEDIUM,Transactions,account_id,,txn_date,6,12
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:38Z,1.696,LOW,Accounts,account_id,,,,1
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.115,HIGH,Transactions,account_id,,,13,13
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,1.828,HIGH,Transactions,account_id,,,10,10
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:38Z,1.614,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,4.669,MEDIUM,Accounts,branch_id;account_type,,,56,3300
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:38Z,30.614,LOW,Transactions,txn_date,,month,4,11547
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,1.877,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,3.371,MEDIUM,Accounts,branch_id;account_type,,,68,3322
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:38Z,32.73,HIGH,Transactions,txn_date,,,1477,1477
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,5.872,MEDIUM,Accounts,branch_id;account_type,,,51,3260
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:38Z,5.907,MEDIUM,Accounts,branch_id;account_type,,,64,3289
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:38Z,31.495,LOW,Transactions,txn_date,,month,4,12054
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:38Z,1.981,MEDIUM,Loans,customer_id,,,1,1
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,1.679,MEDIUM,Transactions,account_id,,txn_date,8,16
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:38Z,29.859,HIGH,Transactions,txn_date,,,1285,1285
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.707,HIGH,Transactions,account_id,,,6,6
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:38Z,2.95,LOW,Accounts,account_id,,,,1
+Q007,"SELECT DATE_FORMAT(txn_date, '%Y-%m') AS month, COUNT(*) AS txn_count, SUM(amount) AS txn_total FROM Transactions WHERE txn_date BETWEEN %s AND %s GROUP BY DATE_FORMAT(txn_date, '%Y-%m') ORDER BY month;",2026-10-18T17:10:38Z,27.987,LOW,Transactions,txn_date,,month,3,8389
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,3.224,HIGH,Transactions,account_id,,,5,5
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,2.774,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.06,HIGH,Transactions,account_id,,,11,11
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:38Z,2.214,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:38Z,3.531,MEDIUM,Loans,status,,principal,50,1300
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:38Z,2.004,HIGH,Transactions,account_id,,,5,5
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,71.957,MEDIUM,Transactions,txn_type;amount,,,7584,20000
+Q010,"SELECT customer_id, name FROM Customers WHERE branch_id = %s AND kyc_status = %s;",2026-10-18T17:10:39Z,4.099,LOW,Customers,branch_id;kyc_status,,,55,2721
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,2.176,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.857,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:39Z,4.86,MEDIUM,Accounts,branch_id;account_type,,,60,3315
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,8.768,HIGH,Transactions,txn_date,,,396,396
+Q010,"SELECT customer_id, name FROM Customers WHERE branch_id = %s AND kyc_status = %s;",2026-10-18T17:10:39Z,4.757,LOW,Customers,branch_id;kyc_status,,,55,2702
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,16.491,HIGH,Transactions,account_id,,,6,6
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:39Z,2.202,LOW,Accounts,account_id,,,,1
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,3.113,HIGH,Transactions,account_id,,,5,5
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:39Z,5.493,MEDIUM,Loans,status,,principal,50,1300
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,2.686,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:39Z,2.149,MEDIUM,Transactions,account_id,,txn_date,9,18
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:39Z,1.761,MEDIUM,Loans,customer_id,,,0,0
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.569,MEDIUM,Customers;Accounts,customer_id,customer_id,,2,2
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:39Z,1.933,LOW,Accounts,account_id,,,,1
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:39Z,4.281,MEDIUM,Loans,status,,principal,50,1300
+Q006,SELECT * FROM Customers WHERE branch_id = %s;,2026-10-18T17:10:39Z,4.845,LOW,Customers,branch_id,,,179,179
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,62.214,MEDIUM,Transactions,txn_type;amount,,,7371,20000
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,2.141,HIGH,Transactions,account_id,,,7,7
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:39Z,1.896,MEDIUM,Transactions,account_id,,txn_date,8,16
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,2.891,HIGH,Transactions,account_id,,,7,7
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:39Z,1.806,MEDIUM,Loans,customer_id,,,4,4
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,45.921,MEDIUM,Transactions,txn_type;amount,,,2033,20000
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,5.072,MEDIUM,Customers;Accounts,customer_id,customer_id,,3,3
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:39Z,4.761,MEDIUM,Loans,status,,principal,50,1300
+Q010,"SELECT customer_id, name FROM Customers WHERE branch_id = %s AND kyc_status = %s;",2026-10-18T17:10:39Z,3.187,LOW,Customers,branch_id;kyc_status,,,50,2718
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,1.738,HIGH,Transactions,account_id,,,5,5
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:39Z,1.591,MEDIUM,Loans,customer_id,,,2,2
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,2.81,HIGH,Transactions,account_id,,,8,8
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.689,MEDIUM,Customers;Accounts,customer_id,customer_id,,0,0
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.727,MEDIUM,Customers;Accounts,customer_id,customer_id,,3,3
+Q013,UPDATE Accounts SET balance = balance + %s WHERE account_id = %s;,2026-10-18T17:10:39Z,1.612,LOW,Accounts,account_id,,,,1
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:39Z,4.345,MEDIUM,Loans,status,,principal,50,1300
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,1.863,HIGH,Transactions,account_id,,,8,8
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,2.865,HIGH,Transactions,account_id,,,10,10
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,36.181,HIGH,Transactions,txn_date,,,2901,2901
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,43.16,HIGH,Transactions,txn_date,,,3329,3329
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,2.599,HIGH,Transactions,account_id,,,6,6
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:39Z,1.67,MEDIUM,Loans,customer_id,,,0,0
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,19.392,HIGH,Transactions,txn_date,,,1572,1572
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,46.989,MEDIUM,Transactions,txn_type;amount,,,3420,20000
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,52.831,MEDIUM,Transactions,txn_type;amount,,,3425,20000
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,22.437,HIGH,Transactions,txn_date,,,1897,1897
+Q009,"SELECT loan_id, customer_id, principal FROM Loans WHERE status = %s ORDER BY principal DESC LIMIT 50;",2026-10-18T17:10:39Z,4.417,MEDIUM,Loans,status,,principal,50,1300
+Q001,SELECT * FROM Transactions WHERE account_id = %s;,2026-10-18T17:10:39Z,2.023,HIGH,Transactions,account_id,,,5,5
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.76,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:39Z,1.944,MEDIUM,Transactions,account_id,,txn_date,7,14
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,64.469,MEDIUM,Transactions,txn_type;amount,,,7284,20000
+Q008,"SELECT account_id, balance FROM Accounts WHERE branch_id = %s AND account_type = %s;",2026-10-18T17:10:39Z,4.518,MEDIUM,Accounts,branch_id;account_type,,,51,3293
+Q005,SELECT * FROM Loans WHERE customer_id = %s;,2026-10-18T17:10:39Z,2.411,MEDIUM,Loans,customer_id,,,0,0
+Q011,"SELECT txn_id, account_id, amount FROM Transactions WHERE txn_type = %s AND amount > %s;",2026-10-18T17:10:39Z,47.013,MEDIUM,Transactions,txn_type;amount,,,1674,20000
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,41.329,HIGH,Transactions,txn_date,,,3802,3802
+Q002,SELECT * FROM Transactions WHERE txn_date BETWEEN %s AND %s;,2026-10-18T17:10:39Z,20.682,HIGH,Transactions,txn_date,,,1753,1753
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.793,MEDIUM,Customers;Accounts,customer_id,customer_id,,1,1
+Q010,"SELECT customer_id, name FROM Customers WHERE branch_id = %s AND kyc_status = %s;",2026-10-18T17:10:39Z,3.274,LOW,Customers,branch_id;kyc_status,,,35,2689
+Q004,"SELECT c.name, a.account_id FROM Customers c JOIN Accounts a ON c.customer_id = a.customer_id WHERE c.customer_id = %s;",2026-10-18T17:10:39Z,1.668,MEDIUM,Customers;Accounts,customer_id,customer_id,,2,2
+Q003,SELECT * FROM Transactions WHERE account_id = %s ORDER BY txn_date DESC;,2026-10-18T17:10:39Z,2.245,MEDIUM,Transactions,account_id,,txn_date,6,12

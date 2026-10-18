@@ -4,11 +4,15 @@ import unittest
 from pathlib import Path
 
 from backend.services.cli import main
+from helpers import patched_settings
 
 
 class CLIIntegrationTests(unittest.TestCase):
     def test_main_generates_recommendations_for_log_file(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
+        # Isolate from any local metadata snapshot and model directory.
+        with tempfile.TemporaryDirectory() as tmpdir, patched_settings(
+            schema_metadata_path=str(Path(tmpdir) / "missing_snapshot.json"), model_dir=str(Path(tmpdir) / "models")
+        ):
             log_path = Path(tmpdir) / "query_logs.csv"
             feature_path = Path(tmpdir) / "candidate_features.csv"
             candidate_path = Path(tmpdir) / "index_candidates.csv"
