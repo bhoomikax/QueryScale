@@ -130,9 +130,8 @@ def build_drop_index_sql(index_name: str, table: str) -> str:
 
 def _test_database_config() -> dict[str, object]:
     assert_distinct_databases()
-    config = settings.mysql_config()
-    config["database"] = settings.db_test_name
-    return config
+    # Benchmark user and test database only (DB_TEST_USER falls back to DB_USER locally).
+    return settings.test_mysql_config()
 
 
 def connect_to_test_database(raise_on_warnings: bool = True) -> MySQLConnection:

@@ -7,8 +7,15 @@ __pycache__/
 .venv/
 venv/
 tests/
-# Generated artifacts are mounted at runtime, never baked into the image.
-data/
+docs/
+# Generated artifacts are mounted at runtime, never baked into the image. The committed
+# data/*.csv files are copied; local history, snapshots, backups, and models are not.
+data/benchmark_history.jsonl
+data/schema_metadata.json
+data/query_features.csv
 data_backup/
 models/
 runtime/
+# Terraform never belongs in the image; only infra/certs is copied by the Dockerfile.
+infra/terraform/
+infra/bootstrap/

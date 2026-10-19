@@ -23,7 +23,18 @@ class Settings:
     db_test_name: str = os.getenv("DB_TEST_NAME", "queryscale_test")
     db_user: str = os.getenv("DB_USER", "root")
     db_password: str = os.getenv("DB_PASSWORD", "")
+    # Benchmark connections (test database only). Default to the primary credentials so the
+    # local Docker setup keeps working; the AWS task definitions pass a least-privilege user.
+    db_test_user: str = os.getenv("DB_TEST_USER") or os.getenv("DB_USER", "root")
+    db_test_password: str = os.getenv("DB_TEST_PASSWORD") or os.getenv("DB_PASSWORD", "")
     db_charset: str = os.getenv("DB_CHARSET", "utf8mb4")
+    db_connection_timeout: int = int(os.getenv("DB_CONNECTION_TIMEOUT", "10"))
+    # TLS: RDS enforces require_secure_transport. Local MySQL has no trusted certificate, so
+    # the default is off; deployed environments set DB_TLS_VERIFY=true and DB_TLS_CA.
+    db_tls_verify: bool = os.getenv("DB_TLS_VERIFY", "false").strip().lower() in {"1", "true", "yes", "on"}
+    db_tls_ca: str = os.getenv("DB_TLS_CA", "")
+    api_host: str = os.getenv("API_HOST", "127.0.0.1")
+    api_port: int = int(os.getenv("API_PORT", "8000"))
     query_log_path: str = os.getenv("QUERY_LOG_PATH", "data/query_logs.csv")
     recommendation_path: str = os.getenv("RECOMMENDATION_PATH", "data/recommendations.csv")
     benchmark_result_path: str = os.getenv("BENCHMARK_RESULT_PATH", "data/benchmark_results.csv")
@@ -63,7 +74,9 @@ class Settings:
         return path if path.is_absolute() else ROOT_DIR / path
 
     def mysql_config(self) -> dict[str, object]:
-        return {
+        """Connection settings for the primary database (read-only use in the application)."""
+
+        config: dict[str, object] = {
             "host": self.db_host,
             "port": self.db_port,
             "database": self.db_name,
@@ -72,7 +85,23 @@ class Settings:
             "charset": self.db_charset,
             "autocommit": True,
             "raise_on_warnings": True,
+            "connection_timeout": self.db_connection_timeout,
         }
+        if self.db_tls_verify:
+            config["ssl_verify_cert"] = True
+            config["ssl_verify_identity"] = True
+        if self.db_tls_ca:
+            config["ssl_ca"] = self.db_tls_ca
+        return config
+
+    def test_mysql_config(self) -> dict[str, object]:
+        """Connection settings for the isolated benchmark database, using the benchmark user."""
+
+        config = self.mysql_config()
+        config["database"] = self.db_test_name
+        config["user"] = self.db_test_user
+        config["password"] = self.db_test_password
+        return config
 
 
 settings = Settings()

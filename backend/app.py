@@ -72,6 +72,13 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/health/live")
+def health_live() -> dict[str, str]:
+    """Liveness alias used by the ECS container health check and the AWS scripts."""
+
+    return {"status": "ok"}
+
+
 @app.get("/health/ready")
 def readiness(check_db: bool = Query(default=False)) -> dict[str, Any]:
     """Readiness: artifact availability, model status, and (optionally) database connectivity."""
@@ -123,7 +130,7 @@ def readiness(check_db: bool = Query(default=False)) -> dict[str, Any]:
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("backend.app:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("backend.app:app", host=settings.api_host, port=settings.api_port, reload=False)
 
 
 if __name__ == "__main__":
