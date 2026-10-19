@@ -82,6 +82,26 @@ class ImageContractTests(unittest.TestCase):
         self.assertIn("${API_PORT:-8000}", dockerfile)
         self.assertIn("COPY --chown=10001:10001 data ./data", dockerfile)
 
+    def test_image_ships_only_the_production_model_files(self):
+        """The cloud API ranks with the trained model; demo, archive, and history stay out of the image."""
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("COPY --chown=10001:10001 models/index_ranker.joblib models/index_ranker.json ./models/", dockerfile)
+        ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+        self.assertIn("models/**", ignore)
+        self.assertIn("!models/index_ranker.joblib", ignore)
+        self.assertIn("!models/index_ranker.json", ignore)
+        self.assertNotIn("!models/demo", "\n".join(ignore))
+        self.assertIn("data/benchmark_history.jsonl", ignore)
+
+    def test_terraform_budget_is_optional_and_off_by_default(self):
+        budget = (ROOT / "infra" / "terraform" / "budget.tf").read_text(encoding="utf-8")
+        self.assertIn("count = var.create_budget ? 1 : 0", budget)
+        variables = (ROOT / "infra" / "terraform" / "variables_ops.tf").read_text(encoding="utf-8")
+        self.assertRegex(variables, r'variable "create_budget" \{[^}]*default\s*=\s*false')
+        example = (ROOT / "infra" / "terraform" / "environments" / "dev.tfvars.example").read_text(encoding="utf-8")
+        self.assertIn("create_budget             = false", example)
+        self.assertIn("db_backup_retention_days = 1", example)
+
     def test_terraform_worker_command_is_this_branch_worker(self):
         services = (ROOT / "infra" / "terraform" / "ecs_services.tf").read_text(encoding="utf-8")
         self.assertIn('["python", "-m", "backend.worker"]', services)

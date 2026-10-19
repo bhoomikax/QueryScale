@@ -26,6 +26,10 @@ COPY --chown=10001:10001 data ./data
 # Source: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 # Unused locally; point DB_TLS_CA at this path in deployed environments.
 COPY infra/certs/rds-global-bundle.pem ./certs/rds-global-bundle.pem
+# Production model only (no demo, archive, or history). The loader refuses the file unless its
+# SHA-256 matches index_ranker.json and label_source is measured_benchmark, so a stale or
+# tampered copy falls back to rule-based ranking. Train first: py scripts/train_model.py
+COPY --chown=10001:10001 models/index_ranker.joblib models/index_ranker.json ./models/
 
 USER 10001:10001
 EXPOSE 8000

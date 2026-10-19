@@ -11,6 +11,8 @@ alb_allowed_cidrs = ["203.0.113.10/32"]
 
 # Cost posture for a development account.
 enable_nat_gateway       = false
+# The account already has a console budget; leave this false to avoid duplicate alerts.
+create_budget             = false
 budget_monthly_limit_usd  = 50
 budget_alert_emails       = ["you@example.com"]
 budget_alert_absolute_usd = [25]   # extra email at this many dollars of actual spend
@@ -21,7 +23,7 @@ db_instance_class        = "db.t4g.micro"
 db_allocated_storage     = 20
 db_max_allocated_storage = 0
 db_multi_az              = false
-db_backup_retention_days = 7
+db_backup_retention_days = 1   # dev: one day of automated backups
 
 # Image tag pushed to ECR (short git SHA). Leave empty until the first push;
 # the bootstrap task definition is created only when this is set.

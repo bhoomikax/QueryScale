@@ -8,6 +8,10 @@
 # silently reports zero spend.
 
 resource "aws_budgets_budget" "monthly" {
+  # Off by default: the account already has a console budget (QueryScale-Budget, USD 10/month)
+  # and a second budget would only duplicate its emails. Budgets never cap spending.
+  count = var.create_budget ? 1 : 0
+
   name         = "${local.name}-monthly"
   budget_type  = "COST"
   limit_amount = tostring(var.budget_monthly_limit_usd)

@@ -14,7 +14,9 @@ data/benchmark_history.jsonl
 data/schema_metadata.json
 data/query_features.csv
 data_backup/
-models/
+models/**
+!models/index_ranker.joblib
+!models/index_ranker.json
 runtime/
 # Terraform never belongs in the image; only infra/certs is copied by the Dockerfile.
 infra/terraform/
