@@ -34,13 +34,22 @@ locals {
       API_HOST = "0.0.0.0"
       API_PORT = tostring(var.container_port)
       DB_USER  = var.db_app_username
+      # The API task runs analysis, benchmark, and training jobs itself (thread mode).
+      # Its SQLite job store is task-local, so a separate worker task cannot see the
+      # jobs; keep worker_desired_count at 0 unless a shared job store exists.
+      JOB_EXECUTION_MODE = "thread"
+      # Benchmarks open the test database as the least-privilege benchmark user.
+      DB_TEST_USER = var.db_benchmark_username
     },
     contains(var.jobs_db_consumers, "api") ? { DB_JOBS_USER = var.db_jobs_username } : {},
     var.api_extra_environment,
   )
 
   api_secrets = merge(
-    { DB_PASSWORD = "${local.secret_db_app.arn}:password::" },
+    {
+      DB_PASSWORD      = "${local.secret_db_app.arn}:password::"
+      DB_TEST_PASSWORD = "${local.secret_db_benchmark.arn}:password::"
+    },
     contains(var.jobs_db_consumers, "api") ? { DB_JOBS_PASSWORD = local.jobs_secret_ref } : {},
   )
 
@@ -50,8 +59,12 @@ locals {
       # The worker only opens benchmark-database connections (backend/services/benchmark.py,
       # index_manager.py use test_mysql_config). DB_USER is set to the same account so the
       # DB_TEST_USER fallback in backend/config.py never resolves to "root".
-      DB_USER      = var.db_benchmark_username
-      DB_TEST_USER = var.db_benchmark_username
+      # NOTE: this worker polls a SQLite job store in its own task; it does not share the
+      # API task's store, so API-submitted jobs never reach it. It is kept for a future
+      # shared job store; set worker_desired_count = 0 for now (see dev.tfvars.example).
+      DB_USER            = var.db_benchmark_username
+      DB_TEST_USER       = var.db_benchmark_username
+      JOB_EXECUTION_MODE = "queue"
     },
     contains(var.jobs_db_consumers, "worker") ? { DB_JOBS_USER = var.db_jobs_username } : {},
     var.worker_extra_environment,

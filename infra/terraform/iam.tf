@@ -1,7 +1,7 @@
 # IAM roles for ECS. One execution role per task kind (what the ECS agent needs to
 # start that task) and one task role per task kind (what the code may call at runtime).
 #
-#   api_execution        pulls the image, writes the api log group, reads the app secret
+#   api_execution        pulls the image, writes the api log group, reads the app and benchmark secrets
 #   worker_execution     pulls the image, writes the worker log group, reads the benchmark secret
 #   bootstrap_execution  pulls the image, writes the bootstrap log group, reads every app
 #                        secret and the RDS-managed master secret
@@ -46,8 +46,10 @@ locals {
   execution_roles = {
     api = {
       log_group = aws_cloudwatch_log_group.app["api"].arn
+      # The API task runs benchmarks itself (JOB_EXECUTION_MODE=thread), so it also
+      # receives the benchmark user's password for the test database.
       secrets = concat(
-        [local.secret_db_app.arn],
+        [local.secret_db_app.arn, local.secret_db_benchmark.arn],
         contains(var.jobs_db_consumers, "api") ? [local.secret_db_jobs.arn] : [],
       )
     }

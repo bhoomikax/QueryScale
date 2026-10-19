@@ -89,6 +89,21 @@ class ImageContractTests(unittest.TestCase):
         self.assertTrue((ROOT / "backend" / "worker.py").exists())
         self.assertFalse((ROOT / "backend" / "jobs").exists(), "the cloud branch's duplicate job system is not merged")
 
+    def test_terraform_api_task_runs_jobs_itself_with_benchmark_credentials(self):
+        """ECS tasks do not share a filesystem, so the API task runs jobs in thread mode and
+        needs the benchmark user's secret; the execution role must be allowed to read it."""
+        services = (ROOT / "infra" / "terraform" / "ecs_services.tf").read_text(encoding="utf-8")
+        api_env = services.split("api_environment = merge(")[1].split("api_secrets = merge(")[0]
+        self.assertIn('JOB_EXECUTION_MODE = "thread"', api_env)
+        self.assertIn("DB_TEST_USER = var.db_benchmark_username", api_env)
+        api_secrets = services.split("api_secrets = merge(")[1].split("worker_environment = merge(")[0]
+        self.assertIn('DB_TEST_PASSWORD = "${local.secret_db_benchmark.arn}:password::"', api_secrets)
+        iam = (ROOT / "infra" / "terraform" / "iam.tf").read_text(encoding="utf-8")
+        api_role = iam.split("api = {")[1].split("worker = {")[0]
+        self.assertIn("local.secret_db_benchmark.arn", api_role)
+        tfvars = (ROOT / "infra" / "terraform" / "environments" / "dev.tfvars.example").read_text(encoding="utf-8")
+        self.assertIn("worker_desired_count = 0", tfvars)
+
 
 if __name__ == "__main__":
     unittest.main()

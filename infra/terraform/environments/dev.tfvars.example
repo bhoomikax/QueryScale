@@ -28,15 +28,16 @@ db_backup_retention_days = 7
 image_tag              = ""
 image_cpu_architecture = "X86_64"
 
-# ECS services. The worker stays at 1 (single benchmark database). Set either to 0 to
-# pause without destroying. Until the shared job-store adapter lands, the worker cannot
-# see API-submitted jobs; it still verifies the image, secrets and database access.
+# ECS services. The API task runs analysis, benchmark, and training jobs itself
+# (JOB_EXECUTION_MODE=thread), so one API task is a complete deployment. The worker task
+# cannot see the API task's job store (no shared store yet); keep it at 0 to avoid paying
+# for an idle task. Set api_desired_count to 0 to pause without destroying.
 api_cpu              = 256
 api_memory           = 512
 api_desired_count    = 1
 worker_cpu           = 256
 worker_memory        = 512
-worker_desired_count = 1
+worker_desired_count = 0
 
 # Where tasks run: auto = private subnets with NAT, otherwise public with a public IP.
 ecs_tasks_subnet_tier = "auto"

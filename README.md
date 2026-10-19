@@ -335,6 +335,13 @@ The application runs unchanged locally and is configured for AWS through environ
 
 ## Deploy to AWS
 
+> **Status (2026-10-19): designed, validated, and rehearsed locally; not deployed.** The
+> Terraform below runs the API task with `JOB_EXECUTION_MODE=thread`, so one API task runs
+> analysis, benchmark, and training jobs itself against RDS. The separate worker service
+> defaults to 0 tasks because ECS tasks do not share the SQLite job store. SQS delivery,
+> worker interruption recovery, and per-job S3 artifacts are therefore not exercised in
+> AWS. See `docs/cloud-integration-status.md` for the full picture and costs.
+
 Phase 3 moves the API and worker to ECS Fargate with RDS, SQS, S3, Secrets Manager
 and CloudWatch. The infrastructure lives under `infra/` as Terraform and is applied in
 stages: the foundation (networking, security groups, ECR, the artifact bucket, the job

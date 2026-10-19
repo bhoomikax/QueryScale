@@ -1,71 +1,82 @@
 # Cloud integration status
 
-Last reviewed: 2026-10-18, on branch `repair/ml-e2e` (based on `ml`).
+Last reviewed: 2026-10-19, on branch `integration/ml-cloud` (`ml` + `cloud` merged).
 
-## What exists where
+## What was merged and how
 
-| Capability | `ml` branch (this code) | `cloud` branch |
+| Area | Source | Decision |
 | --- | --- | --- |
-| ML ranking (`backend/services/ml/`), rule scorer, schema metadata, queue-mode worker (`backend/worker.py`), Docker Compose stack | Yes | No (the files are absent) |
-| Terraform for VPC, RDS MySQL, ECS Fargate, ALB, SQS, S3, CloudWatch alarms, budget (`infra/terraform/`, `infra/bootstrap/`) | No | Yes |
-| AWS operations scripts (`scripts/aws/*.ps1`, `scripts/aws/smoke_test.py`, `scripts/aws_bootstrap.py`, `scripts/aws_db_validate.py`) | No | Yes |
-| Alternative job system (`backend/jobs/*`: SQLite store, local queue, local artifact store, worker with attempts/recovery) | No | Yes |
-| S3 model-artifact mirroring (`backend/services/artifact_store.py`, `ARTIFACT_STORE=s3`) | Yes, never exercised against a bucket | No |
-| JSON logging for CloudWatch (`LOG_FORMAT=json`) | Yes | No |
+| Application (API, ML pipeline, job store, worker, dashboard, tests) | `ml` | Kept unchanged. It is the newer, tested code. |
+| Terraform (`infra/terraform`, `infra/bootstrap`), AWS scripts (`scripts/aws/*.ps1`, `scripts/aws_bootstrap.py`, `scripts/aws_db_validate.py`), `docs/aws-validation.md`, RDS CA bundle | `cloud` | Brought over; `terraform fmt` and `validate` pass. |
+| `cloud` job system (`backend/jobs/*`) and its tests | `cloud` | **Not merged.** `ml` already has an API-wired job store (`backend/services/jobs.py`) and worker (`backend/worker.py`). Two job systems would have been confusing and untested together. |
+| TLS settings, benchmark DB user, `API_HOST`/`API_PORT`, `/health/live`, RDS cert in the image | `cloud` | Ported into the `ml` code (`backend/config.py`, `index_manager.py`, `app.py`, `Dockerfile`). Local defaults unchanged. |
+| `scripts/aws/smoke_test.py` | `cloud` | Rewritten for this branch's API (`/api/benchmark/{id}?background=true`, `/api/jobs/{id}`). Passes locally against Docker Compose. |
+| Benchmark DB user grants (`scripts/aws_bootstrap.py`) | `cloud` | Widened from `SELECT, INDEX` to `SELECT, INSERT, UPDATE, DELETE, INDEX` on the **test database only**, because the benchmark replays rolled-back writes, runs write probes, and `ANALYZE TABLE`. Still no `DROP`, `ALTER`, `CREATE`. |
+
+## Deployment model chosen for this submission
+
+`ml`'s API and worker share a SQLite job store on one filesystem. ECS Fargate services do
+not share a filesystem, so an API task and a worker task cannot cooperate without a shared
+job store (MySQL or SQS adapters, which nobody has written). Instead of faking that, the
+Terraform now runs the API task with `JOB_EXECUTION_MODE=thread`: the API process runs
+analysis, benchmark, and training jobs itself, exactly as the direct-Python workflow does
+on Windows. The API task therefore also receives the benchmark user's credentials
+(`DB_TEST_USER`, `DB_TEST_PASSWORD`). The worker service stays defined but defaults to
+`worker_desired_count = 0`.
+
+Consequences, stated plainly:
+
+- Works: readiness through the ALB, job submission and durable status within the task,
+  real benchmarks on RDS, cleanup verification, least-privilege database users.
+- Not exercised in AWS: SQS delivery to a separate worker, worker interruption recovery,
+  per-job S3 artifacts. These stay "pending application work" and the smoke test reports
+  the artifact check as `PENDING-APP`.
+- Data is task-local: benchmark history and any model trained in the cloud live in the
+  task's container filesystem and vanish when the task is replaced. Model artifacts can be
+  mirrored to S3 by setting `ARTIFACT_STORE=s3` and installing `boto3` in the image, but
+  nothing downloads them at start-up yet.
+- The committed `data/*.csv` are baked into the image, so recommendations are available
+  immediately; the model is **not** in the image (gitignored), so the cloud API ranks by
+  rules unless a model is trained there or copied in.
+
+## AWS readiness checklist (as of 2026-10-19)
+
+| Item | State | Evidence / next step |
+| --- | --- | --- |
+| AWS CLI | **Missing** on this machine | `winget install Amazon.AWSCLI`, then `aws configure` |
+| AWS identity and region | **Unverified** (no `~/.aws`, no `AWS_*` variables) | `aws sts get-caller-identity`; `aws configure get region` |
+| Terraform | **Missing** locally; validated via `docker run hashicorp/terraform:1.10` | `winget install Hashicorp.Terraform` or keep using the container |
+| Region | Terraform defaults to `us-east-1`; console reportedly shows `ap-southeast-2` | Set `region` in `environments/dev.tfvars` and `backend.hcl` to one value and use it consistently |
+| Docker / ECR | Image builds locally (`queryscale-app:local`) | `scripts/aws/build_push_image.ps1` after ECR exists |
+| IAM permissions | Unknown until identity is verified | The deploying principal needs rights for VPC, EC2 networking, ECS, ECR, RDS, SQS, S3, Secrets Manager, IAM roles, CloudWatch, Budgets |
+| Terraform remote state | Bootstrap stack creates the bucket | `infra/bootstrap`: `terraform apply` once |
+| Secrets | Generated by Terraform into Secrets Manager; RDS master password managed by RDS | Nothing to type in |
+| Database bootstrap | `scripts/aws_bootstrap.py` via the ECS bootstrap task | Schema, seed, three users, test-database clone |
+| Application contract | Satisfied by this branch | `/health/live`, `/health/ready`, `python -m backend.worker`, `API_HOST`/`API_PORT`, TLS, `DB_TEST_USER` |
+| Budget | `budget.tf` with email alerts | Set `budget_alert_emails` in tfvars |
+
+## Expected charges (rough, dev sizing from `dev.tfvars.example`)
+
+- RDS `db.t4g.micro` + 20 GiB gp3: free-tier eligible for 750 h/month on new accounts for 12 months; otherwise roughly USD 12 to 15 per month.
+- ECS Fargate 0.25 vCPU / 0.5 GiB, one task: roughly USD 9 to 10 per month if left running.
+- Application Load Balancer: roughly USD 16 to 20 per month plus LCU; **not** free tier.
+- NAT gateway: disabled by default (`enable_nat_gateway = false`); enabling it adds roughly USD 32 per month plus data.
+- S3, SQS, Secrets Manager (3 secrets, about USD 1.20 per month), CloudWatch logs: small.
+- Budgets only notify; nothing stops billing except `api_desired_count = 0` or `terraform destroy`.
+
+Exact prices depend on region and change over time; check the AWS pricing pages for the chosen region before applying.
 
 ## Deployment evidence
 
-There is **no evidence of a real AWS deployment** on either branch. `docs/aws-validation.md`
-on `cloud` records a local Docker rehearsal on 2026-10-14 and states: "Nothing was run
-against AWS; rows 5 to 8 of the procedure table remain unexecuted there." No Terraform
-state, no `dev.tfvars`, no ECR image tag, and no CloudWatch output is committed anywhere.
-Any report must describe AWS as *designed and locally rehearsed*, not deployed.
+There is **no evidence of a real AWS deployment** on any branch. No Terraform state,
+`tfvars`, ECR image tag, or CloudWatch output exists in the repository, and the tooling to
+deploy is not installed on this machine. Any report must describe AWS as *designed,
+validated, and locally rehearsed*, not deployed, until an apply has been run and
+`scripts/aws/smoke_test.py` has passed against the ALB URL.
 
-## What is verified locally (this branch)
+## Smallest changes Person 1 would need for the full cloud story
 
-- Three-container Compose stack (`mysql:8.4`, API, single worker) healthy; readiness
-  endpoint reports database reachability and worker heartbeat.
-- Jobs submitted through the API are executed by the worker container from the shared
-  SQLite job store in the `queryscale-runtime` volume.
-- The same image runs `uvicorn backend.app:app` and `python -m backend.worker`, which is
-  the split an ECS service pair needs.
-
-## Integration required to ship the ML application on the cloud infrastructure
-
-A dry-run merge (`git merge-tree --write-tree ml cloud`) conflicts in these files:
-
-```
-.dockerignore  .env.example  .gitignore  Dockerfile  README.md
-backend/app.py  backend/routes/benchmark.py  backend/services/benchmark.py
-backend/services/index_manager.py  dashboard/dashboard.js  dashboard/style.css
-scripts/run_local_pipeline.py  scripts/workload.py
-```
-
-Recommended direction: keep `ml` as the application base and bring the `cloud`
-infrastructure over, because `ml` carries the ML pipeline, the metadata layer, the
-protocol-v2 benchmark, and the tests. Concretely:
-
-1. Copy `infra/`, `docs/aws-validation.md`, `scripts/aws/`, `scripts/aws_bootstrap.py`,
-   and `scripts/aws_db_validate.py` from `cloud` (no conflicts; they do not exist on `ml`).
-2. Do **not** merge `backend/jobs/*` from `cloud`. `ml` already has an equivalent job
-   store and worker (`backend/services/jobs.py`, `backend/worker.py`). The `cloud`
-   Terraform task definition runs `python -m backend.jobs.worker`; change that command to
-   `python -m backend.worker` in `infra/terraform/ecs_services.tf`.
-3. The `cloud` health paths are `/health/live` and `/health/ready`; `ml` serves `/health`
-   and `/health/ready`. Either add a `/health/live` alias in `backend/app.py` (one line) or
-   change the ALB and container health checks in Terraform.
-4. The `cloud` RDS bootstrap enforces TLS (`DB_TLS_VERIFY`, `DB_TLS_CA`). `ml`'s
-   `backend/config.py` has no TLS settings; add `ssl_ca` / `ssl_verify_cert` to
-   `Settings.mysql_config()` before pointing it at RDS.
-5. `cloud` uses two database users (`queryscale_app` read-only on the primary,
-   `queryscale_benchmark` on the test database). `ml` uses one `DB_USER` for both. Either
-   add `DB_TEST_USER`/`DB_TEST_PASSWORD` to `index_manager.py` and `test_database.py`, or
-   grant one user the privileges listed in the README.
-6. SQS is provisioned on `cloud` but not consumed by either branch's worker. The `ml`
-   worker polls SQLite, which only works while API and worker share one filesystem (one
-   host or one task with a shared volume). For multi-task ECS, a queue adapter is still
-   application work.
-7. Model artifacts: set `ARTIFACT_STORE=s3` and install `boto3` in the image so trained
-   models are mirrored; the worker task role needs `s3:PutObject` on the artifact prefix.
-
-None of the above has been executed. No AWS resources were created or changed during this work.
+1. A shared job store (MySQL `queryscale_jobs` database, already provisioned) so a separate
+   worker task can claim API-submitted jobs; or an SQS consumer in `backend/worker.py`.
+2. Per-job S3 artifact upload and `GET /api/benchmark/jobs/{id}/artifact`.
+3. Model download from S3 at start-up when `ARTIFACT_STORE=s3` and no local model exists.
