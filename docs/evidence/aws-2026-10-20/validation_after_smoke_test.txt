@@ -1,0 +1,36 @@
+﻿command: .\scripts\aws\run_bootstrap_task.ps1 -Mode validate (after smoke test)
+started: 2026-10-20 08:48:17Z
+2026-10-20T08:49:27.314000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] tls:admin-connection: TLS_AES_128_GCM_SHA256
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] tls:require_secure_transport: ON
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] database:source: queryscale
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] database:benchmark: queryscale_test
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] database:jobs: queryscale_jobs
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] tables:source: all present
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] tables:benchmark: all present
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] rows:Branches: 50 rows in both
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] rows:Customers: 10000 rows in both
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] rows:Accounts: 15000 rows in both
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] rows:Transactions: 100000 rows in both
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] rows:Loans: 5000 rows in both
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] benchmark:no-leftover-indexes: clean
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] user:queryscale_app: exists
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] ssl-required:queryscale_app: ANY
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] grants:queryscale_app: SELECT on queryscale.*
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] user:queryscale_benchmark: exists
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] ssl-required:queryscale_benchmark: ANY
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] grants:queryscale_benchmark: DELETE, INDEX, INSERT, SELECT, UPDATE on queryscale_test.*
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] user:queryscale_jobs: exists
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] ssl-required:queryscale_jobs: ANY
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] grants:queryscale_jobs: ALTER, CREATE, DELETE, INDEX, INSERT, SELECT, UPDATE on queryscale_jobs.*
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_app:cannot read queryscale_test: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_app:cannot read queryscale_jobs: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_app:cannot write queryscale: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_app:cannot drop in queryscale: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_benchmark:cannot read queryscale: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_benchmark:cannot read queryscale_jobs: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_benchmark:cannot drop in queryscale_test: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_jobs:cannot read queryscale: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_jobs:cannot read queryscale_test: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 [PASS] probe:queryscale_jobs:cannot drop in queryscale_jobs: denied (1142)
+2026-10-20T08:49:27.315000+00:00 bootstrap/bootstrap/95bbe9a8c87841fc895c51848a761df0 32 passed, 0 failed
+exit=0 finished: 2026-10-20 08:50:08Z

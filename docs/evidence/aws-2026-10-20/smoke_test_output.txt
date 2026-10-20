@@ -1,0 +1,82 @@
+command: py scripts/aws/smoke_test.py --base-url http://<alb-dns> --iterations 50 --tolerate-missing-adapters --json
+started: 2026-10-20T08:47:35Z
+Smoke test against http://<alb-dns>
+[PASS       ] health /health/live: 200 ok
+[PASS       ] health /health/ready: 200 ok
+[PASS       ] ml model status: ranking_method=ml; usable=True; label_source=measured_benchmark; reason=Model loaded and validated.
+[PASS       ] recommendations available: 9 rows, using IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID
+[PASS       ] submit returns 202 job: job benchmark-ba992d994633 PENDING (created=True)
+    job benchmark-ba992d994633 -> RUNNING
+    job benchmark-ba992d994633 -> COMPLETED
+[PASS       ] job persisted and listed: appears in /api/jobs
+[PASS       ] job reached terminal state: RUNNING -> COMPLETED
+[PASS       ] result has aggregate fields: before 11.991 ms, after 8.594 ms, 1.395x over 50 executions, workload_benefit 0.696981, affected ['Q011']
+[PASS       ] cleanup recorded: worker dropped idx_transactions_txn_type_amount_account_id after measuring
+[PASS       ] run record persisted: BR-20261020T084739Z-dd99e141: 11 query groups, protocol v2, cleanup dropped
+[PASS       ] measurements in /api/benchmark/results: 11 rows for BR-20261020T084739Z-dd99e141
+[PENDING-APP] artifact reference: Per-job S3 artifacts are not implemented on this branch; the run record lives in the task's benchmark history file. Trained model artifacts are mirrored when ARTIFACT_STORE=s3 (see /api/ml/model provenance).
+
+11 passed, 0 failed, 1 pending application work
+[
+  {
+    "name": "health /health/live",
+    "state": "PASS",
+    "detail": "200 ok"
+  },
+  {
+    "name": "health /health/ready",
+    "state": "PASS",
+    "detail": "200 ok"
+  },
+  {
+    "name": "ml model status",
+    "state": "PASS",
+    "detail": "ranking_method=ml; usable=True; label_source=measured_benchmark; reason=Model loaded and validated."
+  },
+  {
+    "name": "recommendations available",
+    "state": "PASS",
+    "detail": "9 rows, using IDX_TRANSACTIONS_TXN_TYPE_AMOUNT_ACCOUNT_ID"
+  },
+  {
+    "name": "submit returns 202 job",
+    "state": "PASS",
+    "detail": "job benchmark-ba992d994633 PENDING (created=True)"
+  },
+  {
+    "name": "job persisted and listed",
+    "state": "PASS",
+    "detail": "appears in /api/jobs"
+  },
+  {
+    "name": "job reached terminal state",
+    "state": "PASS",
+    "detail": "RUNNING -> COMPLETED"
+  },
+  {
+    "name": "result has aggregate fields",
+    "state": "PASS",
+    "detail": "before 11.991 ms, after 8.594 ms, 1.395x over 50 executions, workload_benefit 0.696981, affected ['Q011']"
+  },
+  {
+    "name": "cleanup recorded",
+    "state": "PASS",
+    "detail": "worker dropped idx_transactions_txn_type_amount_account_id after measuring"
+  },
+  {
+    "name": "run record persisted",
+    "state": "PASS",
+    "detail": "BR-20261020T084739Z-dd99e141: 11 query groups, protocol v2, cleanup dropped"
+  },
+  {
+    "name": "measurements in /api/benchmark/results",
+    "state": "PASS",
+    "detail": "11 rows for BR-20261020T084739Z-dd99e141"
+  },
+  {
+    "name": "artifact reference",
+    "state": "PENDING-APP",
+    "detail": "Per-job S3 artifacts are not implemented on this branch; the run record lives in the task's benchmark history file. Trained model artifacts are mirrored when ARTIFACT_STORE=s3 (see /api/ml/model provenance)."
+  }
+]
+exit=0 finished: 2026-10-20T08:47:48Z

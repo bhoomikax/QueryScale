@@ -1,0 +1,1 @@
+﻿{"status":"ok","artifacts":{"query_log":true,"recommendations":true,"benchmark_results":true},"ranking_method":"ml","model":{"available":true,"usable":true,"reason":"Model loaded and validated."},"artifact_store":"local","jobs":{"execution_mode":"thread"},"database":"reachable"}

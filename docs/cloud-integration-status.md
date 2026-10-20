@@ -68,11 +68,25 @@ Exact prices depend on region and change over time; check the AWS pricing pages 
 
 ## Deployment evidence
 
-There is **no evidence of a real AWS deployment** on any branch. No Terraform state,
-`tfvars`, ECR image tag, or CloudWatch output exists in the repository, and the tooling to
-deploy is not installed on this machine. Any report must describe AWS as *designed,
-validated, and locally rehearsed*, not deployed, until an apply has been run and
-`scripts/aws/smoke_test.py` has passed against the ALB URL.
+**Deployed on 2026-10-20 in `ap-southeast-2`** from commit `ac6f263` as a short-lived demo
+for the course review, then torn down. What was verified, with the files under
+`docs/evidence/aws-2026-10-20/` as the durable record:
+
+- Terraform: state bucket (6 resources), main stack (79 resources), then the ECS task
+  definitions and services (5 resources); no NAT gateway, no Elastic IP, no second budget.
+- Image `queryscale-dev:ac6f26313449` (linux/amd64) pushed to ECR with the production model
+  inside; the running task's digest matched the pushed one.
+- Database bootstrap task: TLS session, schema, seed (100,000 transactions), three
+  least-privilege users, test-database clone. Validation task: 32 checks passed.
+- API behind the ALB: `/health/live` and `/health/ready?check_db=true` returned `ok`, model
+  usable, ranking method `ml`.
+- `scripts/aws/smoke_test.py` against the ALB: 11 passed, 0 failed, 1 pending (per-job S3
+  artifacts). One real 50-iteration benchmark on RDS, workload benefit 0.697, candidate index
+  dropped; a second validation task confirmed no leftover indexes and unchanged row counts.
+
+Not exercised in AWS, by design: SQS delivery to a separate worker (worker service at 0),
+worker interruption recovery, per-job S3 artifacts. The account is on the AWS Free Plan; the
+run consumed credits only. Before this date there was no AWS deployment on any branch.
 
 ## Smallest changes Person 1 would need for the full cloud story
 
