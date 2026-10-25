@@ -129,6 +129,8 @@ def run_local_pipeline(
     seed: int | None = None,
     collect_labels: int = 0,
     train: bool = False,
+    benchmark_iterations: int | None = None,
+    benchmark_repeats: int | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, object]]]:
     """Execute all local data, recommendation, test DB, and benchmark stages."""
 
@@ -153,11 +155,17 @@ def run_local_pipeline(
     print(f"      {len(recommendations)} recommendations ({recommendations[0]['ranking_method']} ranking); selected {recommendation['candidate_id']}")
     print("[6/8] Rebuilding isolated test database")
     clone_test_database()
+    # Benchmarks use the configured label protocol (BENCHMARK_ITERATIONS/REPEATS) unless overridden,
+    # independent of the workload-capture --iterations, so every run here is comparable with the
+    # labels the dashboard and collect_benchmark_labels.py produce.
+    benchmark_iterations = settings.benchmark_iterations if benchmark_iterations is None else benchmark_iterations
+    benchmark_repeats = settings.benchmark_repeats if benchmark_repeats is None else benchmark_repeats
     if collect_labels:
         from scripts.collect_benchmark_labels import main as collect_main
 
-        print(f"      Collecting measured labels for up to {collect_labels} candidates")
-        collect_main(["--limit", str(collect_labels), "--iterations", str(iterations)])
+        print(f"      Collecting measured labels for up to {collect_labels} candidates "
+              f"({benchmark_iterations} iterations x {benchmark_repeats} repeats)")
+        collect_main(["--limit", str(collect_labels), "--iterations", str(benchmark_iterations), "--repeats", str(benchmark_repeats)])
     if train:
         from backend.services.analysis import run_training
 
@@ -169,14 +177,17 @@ def run_local_pipeline(
         candidate_id=str(recommendation["candidate_id"]),
         table=str(recommendation["table"]),
         columns=str(recommendation["columns"]),
-        iterations=iterations,
+        iterations=benchmark_iterations,
+        repeats=benchmark_repeats,
         output_path=benchmark_path,
         supporting_query_ids=[q for q in str(recommendation.get("supporting_query_ids", "")).split(";") if q] or None,
     )
     summary = record["summary"]
     print(
         f"      Weighted mean {summary['before_ms']} ms -> {summary['after_ms']} ms; "
-        f"workload benefit {summary['workload_benefit']:.4f}; cleanup {record['cleanup']['status'] if record.get('cleanup') else 'n/a'}"
+        f"workload benefit {summary['workload_benefit']:.4f}; cleanup {record['cleanup']['status'] if record.get('cleanup') else 'n/a'}; "
+        f"protocol {benchmark_iterations}x{benchmark_repeats} "
+        f"({'matches' if record['workload']['matches_label_protocol'] else 'differs from'} the label protocol)"
     )
     print("[8/8] API and dashboard artifacts ready")
     return recommendation, record["queries"]
@@ -196,6 +207,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=None, help="Seed for a reproducible workload log.")
     parser.add_argument("--collect-labels", type=int, default=0, help="Benchmark up to N candidates to collect ML labels.")
     parser.add_argument("--train", action="store_true", help="Train the ML model from measured benchmark history.")
+    parser.add_argument("--benchmark-iterations", type=int, default=None,
+                        help=f"Replay iterations for benchmarks (default BENCHMARK_ITERATIONS={settings.benchmark_iterations}).")
+    parser.add_argument("--benchmark-repeats", type=int, default=None,
+                        help=f"Timed passes for benchmarks (default BENCHMARK_REPEATS={settings.benchmark_repeats}).")
     args = parser.parse_args(argv)
 
     paths = {
@@ -229,6 +244,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             seed=args.seed,
             collect_labels=args.collect_labels,
             train=args.train,
+            benchmark_iterations=args.benchmark_iterations,
+            benchmark_repeats=args.benchmark_repeats,
         )
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         print(f"Local pipeline failed: {exc}", file=sys.stderr)

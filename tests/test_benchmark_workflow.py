@@ -68,8 +68,12 @@ class WorkflowTests(unittest.TestCase):
         self.dir = Path(self.tmp.name)
         self.lock_patch = mock.patch.object(benchmark, "_lock_path", return_value=self.dir / "benchmark.lock")
         self.lock_patch.start()
+        # Benchmark runs also record a training sample; keep it out of the real store.
+        self.settings_patch = patched_settings(ml_dataset_path=str(self.dir / "ml_dataset.sqlite3"))
+        self.settings_patch.__enter__()
 
     def tearDown(self):
+        self.settings_patch.__exit__(None, None, None)
         self.lock_patch.stop()
         self.tmp.cleanup()
 

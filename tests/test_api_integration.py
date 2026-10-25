@@ -35,6 +35,7 @@ class ApiIntegrationTests(unittest.TestCase):
             "benchmark_history_path": "benchmark_history.jsonl",
             "schema_metadata_path": "missing_snapshot.json",
             "model_dir": "models",
+            "ml_dataset_path": "ml_dataset.sqlite3",
         }
         overrides = {key: str(self.dir / value) for key, value in paths.items()}
         overrides["metadata_source"] = "schema"

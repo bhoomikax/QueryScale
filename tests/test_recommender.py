@@ -39,7 +39,8 @@ class RecommenderTests(unittest.TestCase):
                     "Low value recommendation.",
                 ])
 
-            rows = generate_recommendations(candidate_path, output_path)
+            # Rule-only: this test is about the heuristic ranking, not about any locally trained model.
+            rows = generate_recommendations(candidate_path, output_path, use_ml=False)
 
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["candidate_id"], "IDX_TRANSACTIONS_account_id")

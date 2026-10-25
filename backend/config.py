@@ -41,11 +41,17 @@ class Settings:
     max_index_columns: int = int(os.getenv("MAX_INDEX_COLUMNS", "3"))
     rule_weights_path: str = os.getenv("RULE_WEIGHTS_PATH", "")
     model_dir: str = os.getenv("MODEL_DIR", "models")
+    # Durable store of ML training samples (one SQLite row per benchmark run and candidate).
+    ml_dataset_path: str = os.getenv("ML_DATASET_PATH", "data/ml_dataset.sqlite3")
     ml_min_training_samples: int = int(os.getenv("ML_MIN_TRAINING_SAMPLES", "20"))
     ml_min_training_groups: int = int(os.getenv("ML_MIN_TRAINING_GROUPS", "5"))
     ml_allow_synthetic_model: bool = os.getenv("ML_ALLOW_SYNTHETIC_MODEL", "false").strip().lower() in {"1", "true", "yes", "on"}
     benchmark_query_timeout_ms: int = int(os.getenv("BENCHMARK_QUERY_TIMEOUT_MS", "30000"))
     benchmark_write_probe_samples: int = int(os.getenv("BENCHMARK_WRITE_PROBE_SAMPLES", "25"))
+    # Label protocol: every entry point (API, dashboard, CLI label collection, pipeline) defaults to these
+    # values, so their runs share one workload signature and can be combined into one training set.
+    benchmark_iterations: int = int(os.getenv("BENCHMARK_ITERATIONS", "200"))
+    benchmark_repeats: int = int(os.getenv("BENCHMARK_REPEATS", "2"))
     benchmark_seed: int = int(os.getenv("BENCHMARK_SEED", "42"))
     job_database_path: str = os.getenv("JOB_DATABASE_PATH", "runtime/queryscale_jobs.sqlite3")
     job_execution_mode: str = os.getenv("JOB_EXECUTION_MODE", "thread")

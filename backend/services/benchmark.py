@@ -200,6 +200,44 @@ def workload_signature(templates: Dict[str, str], iterations: int, seed: int, re
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
+def _workload_templates() -> Dict[str, str]:
+    from scripts.workload import QUERY_LIBRARY
+
+    return {q["query_id"]: q["template"] for q in QUERY_LIBRARY}
+
+
+def label_protocol() -> Dict[str, Any]:
+    """The effective benchmark protocol every entry point defaults to (API, dashboard, CLI, pipeline).
+
+    Runs that share this protocol share one workload signature and can be combined into
+    one training set. A run with other iterations, repeats, or seed is still recorded, but
+    its signature differs and the trainer excludes it as ``different_workload``.
+    """
+
+    templates = _workload_templates()
+    iterations, repeats, seed = settings.benchmark_iterations, settings.benchmark_repeats, settings.benchmark_seed
+    return {
+        "protocol_version": PROTOCOL_VERSION,
+        "iterations": iterations,
+        "repeats": repeats,
+        "warm_up_passes": 1,
+        "seed": seed,
+        "query_timeout_ms": settings.benchmark_query_timeout_ms,
+        "write_probe_samples": settings.benchmark_write_probe_samples,
+        "query_ids": sorted(templates),
+        "workload_signature": workload_signature(templates, iterations, seed, repeats),
+        "test_database": settings.db_test_name,
+        "settings": {"BENCHMARK_ITERATIONS": iterations, "BENCHMARK_REPEATS": repeats, "BENCHMARK_SEED": seed},
+    }
+
+
+def validate_protocol_values(iterations: int, repeats: int) -> None:
+    if not isinstance(iterations, int) or iterations < 1 or iterations > 10000:
+        raise ValueError(f"Benchmark iterations must be an integer between 1 and 10000, got {iterations!r}")
+    if not isinstance(repeats, int) or repeats < 1 or repeats > 10:
+        raise ValueError(f"Benchmark repeats must be an integer between 1 and 10, got {repeats!r}")
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -484,9 +522,9 @@ def run_benchmark_detailed(
     candidate_id: str,
     table: str,
     columns: str | Sequence[str],
-    iterations: int = 100,
+    iterations: int | None = None,
     output_path: str | Path = DEFAULT_OUTPUT_PATH,
-    repeats: int = 1,
+    repeats: int | None = None,
     seed: int | None = None,
     history_path: str | Path | None = None,
     candidate_features: Dict[str, Any] | None = None,
@@ -495,23 +533,30 @@ def run_benchmark_detailed(
 ) -> Dict[str, Any]:
     """Run one complete benchmark and return the persisted run record.
 
-    Raises ``ValueError`` for invalid candidates and ``BenchmarkError`` (a
-    ``RuntimeError``) for database failures. Failed runs are also written to
-    the history file with ``status = FAILED``.
+    ``iterations``, ``repeats`` and ``seed`` default to the configured label
+    protocol (``BENCHMARK_ITERATIONS``, ``BENCHMARK_REPEATS``, ``BENCHMARK_SEED``),
+    so runs started from the API, the dashboard, the CLI and the pipeline are
+    comparable unless a caller asks for something else on purpose.
+
+    Raises ``ValueError`` for invalid candidates or protocol values and
+    ``BenchmarkError`` (a ``RuntimeError``) for database failures. Failed runs
+    are also written to the history file with ``status = FAILED``.
     """
 
     normalized = validate_candidate(candidate_id, table, columns)
     index_name = build_index_name(table, normalized)
-    seed = settings.benchmark_seed if seed is None else seed
-    repeats = max(1, int(repeats))
+    protocol = label_protocol()
+    iterations = protocol["iterations"] if iterations is None else int(iterations)
+    repeats = protocol["repeats"] if repeats is None else int(repeats)
+    seed = protocol["seed"] if seed is None else int(seed)
+    validate_protocol_values(iterations, repeats)
     probe_samples = settings.benchmark_write_probe_samples if write_probe_samples is None else write_probe_samples
     snapshot = dict(candidate_features) if candidate_features else load_candidate_snapshot(candidate_id)
     if supporting_query_ids is None:
         supporting_query_ids = [q for q in str(snapshot.get("supporting_query_ids", "")).split(";") if q]
 
-    from scripts.workload import QUERY_LIBRARY
-
-    templates = {q["query_id"]: q["template"] for q in QUERY_LIBRARY}
+    templates = _workload_templates()
+    signature = workload_signature(templates, iterations, seed, repeats)
     record: Dict[str, Any] = {
         "run_id": f"BR-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}",
         "protocol_version": PROTOCOL_VERSION,
@@ -527,8 +572,11 @@ def run_benchmark_detailed(
             "iterations": iterations,
             "seed": seed,
             "repeats": repeats,
+            "warm_up_passes": 1,
             "query_ids": sorted(templates),
-            "signature": workload_signature(templates, iterations, seed, repeats),
+            "signature": signature,
+            "label_protocol_signature": protocol["workload_signature"],
+            "matches_label_protocol": signature == protocol["workload_signature"],
         },
         "supporting_query_ids": list(supporting_query_ids),
         "candidate_features": snapshot,
@@ -619,14 +667,33 @@ def run_benchmark_detailed(
                     logger.error("Cleanup failed for %s: %s", index_name, exc)
             record["finished_at"] = _now()
             append_history(record, history_path)
+            record_training_sample(record)
     return record
+
+
+def record_training_sample(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Persist the run as a training sample in the durable dataset store (never raises)."""
+
+    try:
+        from backend.services.ml.store import open_store
+
+        sample = open_store().record_benchmark(record)
+        logger.info(
+            "Recorded training sample %s for %s (%s%s)", sample["sample_id"], record.get("candidate_id"),
+            sample["validation_status"], f": {sample['exclusion_reason']}" if sample.get("exclusion_reason") else "",
+            extra={"run_id": record.get("run_id")},
+        )
+        return sample
+    except Exception as exc:  # the benchmark result is already in the history file
+        logger.warning("Training sample for run %s could not be recorded: %s", record.get("run_id"), exc)
+        return None
 
 
 def run_benchmark(
     candidate_id: str,
     table: str,
     columns: str,
-    iterations: int = 100,
+    iterations: int | None = None,
     output_path: str | Path = DEFAULT_OUTPUT_PATH,
 ) -> list[dict[str, object]]:
     """Benchmark one index candidate and return per-query rows (legacy contract)."""
@@ -639,8 +706,8 @@ def main() -> int:
     parser.add_argument("--candidate-id", required=True)
     parser.add_argument("--table", required=True)
     parser.add_argument("--columns", required=True, help="Comma-separated index columns.")
-    parser.add_argument("--iterations", type=int, default=100)
-    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--iterations", type=int, default=None, help=f"Default: BENCHMARK_ITERATIONS ({settings.benchmark_iterations}).")
+    parser.add_argument("--repeats", type=int, default=None, help=f"Default: BENCHMARK_REPEATS ({settings.benchmark_repeats}).")
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--output-path", default=str(DEFAULT_OUTPUT_PATH))
     args = parser.parse_args()
@@ -650,7 +717,12 @@ def main() -> int:
         repeats=args.repeats, seed=args.seed,
     )
     summary = record["summary"]
+    workload = record["workload"]
     print(f"Run {record['run_id']}: {len(record['queries'])} query groups for {args.candidate_id}.")
+    print(
+        f"Protocol: {workload['iterations']} iterations x {workload['repeats']} repeats, seed {workload['seed']}; "
+        f"{'matches' if workload['matches_label_protocol'] else 'DOES NOT match'} the configured label protocol."
+    )
     print(f"Workload benefit (label): {summary['workload_benefit']:.4f}; affected: {', '.join(summary['affected_queries']) or 'none'}")
     print(f"Results written to: {args.output_path}")
     return 0

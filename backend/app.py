@@ -77,6 +77,8 @@ def readiness(check_db: bool = Query(default=False)) -> dict[str, Any]:
     """Readiness: artifact availability, model status, and (optionally) database connectivity."""
 
     from backend.services.ml.predictor import load_ranker
+    from backend.services.ml.status import ml_status
+    from backend.services.ml.store import open_store
 
     artifacts = {
         name: settings.resolve_path(path).exists()
@@ -91,10 +93,22 @@ def readiness(check_db: bool = Query(default=False)) -> dict[str, Any]:
         "status": "ok",
         "artifacts": artifacts,
         "ranking_method": "ml" if ranker.usable else "rule",
-        "model": {"available": ranker.available, "usable": ranker.usable, "reason": ranker.reason},
+        "model": {
+            "available": ranker.available, "usable": ranker.usable, "reason": ranker.reason,
+            "model_version": ranker.version, "label_source": ranker.label_source,
+        },
         "artifact_store": settings.artifact_store,
         "jobs": {"execution_mode": settings.job_execution_mode},
     }
+    try:
+        eligibility = ml_status(ranker, open_store().status())
+        report["ml"] = {
+            "status": eligibility["status"], "mode": eligibility["mode"], "reason": eligibility["reason"],
+            "measured_valid_samples": eligibility["measured_data"]["measured_valid_samples"],
+            "measured_candidates": eligibility["measured_data"]["measured_candidates"],
+        }
+    except Exception as exc:  # the store is optional for liveness; report, never fail readiness
+        report["ml"] = {"status": "unknown", "reason": f"Sample store unavailable: {type(exc).__name__}"}
     if settings.job_execution_mode == "queue":
         from backend.worker import heartbeat_age_seconds
 

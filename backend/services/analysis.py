@@ -102,30 +102,53 @@ def run_analysis(params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 
 
 def run_training(params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Train from measured benchmark history, or from synthetic demo data into ``models/demo``."""
+    """Train from the durable sample store (measured mode) or from synthetic demo data into ``models/demo``.
 
-    from backend.services.ml.dataset import build_measured_dataset, load_benchmark_history, make_synthetic_dataset
-    from backend.services.ml.trainer import resolve_model_dir, train_and_evaluate
+    Measured mode first syncs the benchmark history file into the store
+    (idempotent), then trains only on valid ``measured_benchmark`` samples.
+    Synthetic mode persists its formula-generated rows with
+    ``label_source = synthetic_demo`` so the dashboard can count them; they are
+    never used for measured eligibility.
+    """
+
+    from backend.services.ml.dataset import make_synthetic_dataset
+    from backend.services.ml.store import measured_eligibility, open_store
+    from backend.services.ml.trainer import TrainingInProgress, resolve_model_dir, train_and_evaluate
 
     params = params or {}
+    seed = int(params.get("seed", 42))
+    store = open_store()
     if params.get("synthetic_demo"):
-        frame, provenance = make_synthetic_dataset(seed=int(params.get("seed", 42)))
+        frame, provenance = make_synthetic_dataset(seed=seed)
+        provenance["store"] = store.record_synthetic(frame, seed)
+        provenance["sample_counts"] = {"measured": 0, "synthetic": int(len(frame))}
         model_dir = resolve_model_dir() / DEMO_MODEL_SUBDIR
     else:
-        history = load_benchmark_history(settings.resolve_path(settings.benchmark_history_path))
-        frame, provenance = build_measured_dataset(history, strict_dataset=bool(params.get("strict_dataset", False)))
+        sync = store.sync_history(settings.resolve_path(settings.benchmark_history_path))
+        frame, provenance = store.training_frame(strict_dataset=bool(params.get("strict_dataset", False)))
+        provenance["history_sync"] = sync
         model_dir = resolve_model_dir()
 
-    report = train_and_evaluate(frame, provenance, model_dir=model_dir, random_state=int(params.get("seed", 42)))
+    try:
+        report = train_and_evaluate(frame, provenance, model_dir=model_dir, random_state=seed)
+    except TrainingInProgress as exc:
+        raise AnalysisError("training_in_progress", str(exc)) from exc
+    eligibility = measured_eligibility(store.status(), settings.ml_min_training_samples, settings.ml_min_training_groups)
     result = {
         "status": report["status"],
+        "mode": "synthetic_demo" if params.get("synthetic_demo") else "measured",
         "label_source": report.get("label_source"),
         "samples": report["samples"],
         "groups": report["groups"],
+        "sample_counts": report.get("sample_counts"),
+        "dropped_rows": report.get("dropped_rows"),
         "model_version": report.get("model_version"),
         "selected_model": report.get("selected_model"),
         "suitable": report.get("suitable"),
+        "model_replaced": report.get("model_replaced", False),
+        "active_model_version": report.get("active_model_version"),
         "model_dir": str(model_dir),
+        "measured_eligibility": eligibility,
         "limitations": report.get("limitations", []),
     }
 
@@ -143,21 +166,28 @@ def run_benchmark_job(params: Dict[str, Any]) -> Dict[str, Any]:
     from backend.services.benchmark import run_benchmark_detailed
 
     supporting: Optional[Sequence[str]] = params.get("supporting_query_ids") or None
+    iterations = params.get("iterations")
+    repeats = params.get("repeats")
     record = run_benchmark_detailed(
         candidate_id=params["candidate_id"],
         table=params["table"],
         columns=params["columns"],
-        iterations=int(params.get("iterations", 100)),
+        iterations=None if iterations is None else int(iterations),
         output_path=settings.resolve_path(settings.benchmark_result_path),
-        repeats=int(params.get("repeats", 1)),
+        repeats=None if repeats is None else int(repeats),
         supporting_query_ids=supporting,
     )
+    workload = record.get("workload") or {}
     return {
         "run_id": record["run_id"],
         "candidate_id": record["candidate_id"],
         "summary": record["summary"],
         "index_size_bytes": record.get("index_size_bytes"),
         "cleanup": record.get("cleanup"),
+        "workload": {
+            key: workload.get(key)
+            for key in ("iterations", "repeats", "seed", "signature", "matches_label_protocol")
+        },
     }
 
 

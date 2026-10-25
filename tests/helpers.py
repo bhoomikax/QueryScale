@@ -23,12 +23,17 @@ LOG_HEADER = [
 def patched_settings(**overrides: Any) -> Iterator[Settings]:
     """Replace the shared Settings object in every loaded backend/scripts module."""
 
-    replacement = dataclasses.replace(settings, **overrides)
+    # Base the replacement on whatever Settings object is currently active so nested
+    # patches compose (an inner patch keeps the outer overrides).
+    import backend.config
+
+    current = getattr(backend.config, "settings", settings)
+    replacement = dataclasses.replace(current, **overrides)
     patches = []
     for name, module in list(sys.modules.items()):
         if module is None or not name.startswith(("backend", "scripts")):
             continue
-        if getattr(module, "settings", None) is settings:
+        if isinstance(getattr(module, "settings", None), Settings):
             patches.append(mock.patch.object(module, "settings", replacement))
     for patch in patches:
         patch.start()

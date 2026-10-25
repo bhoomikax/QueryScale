@@ -41,6 +41,10 @@ def _split(value: Any, separator: str) -> List[str]:
     return [item.strip() for item in str(value or "").split(separator) if item.strip()]
 
 
+def _provenance_label(label_source: Any) -> Any:
+    return {"measured_benchmark": "measured-trained", "synthetic_demo": "synthetic-trained"}.get(label_source or "")
+
+
 def _parse_recommendation(row: Dict[str, str]) -> Dict[str, Any]:
     predicted = optional_float(row.get("ml_predicted_benefit"))
     return {
@@ -58,7 +62,10 @@ def _parse_recommendation(row: Dict[str, str]) -> Dict[str, Any]:
         "ml_predicted_benefit": predicted,
         "ml_prediction_type": "model_prediction" if predicted is not None else None,
         "ml_model_version": row.get("ml_model_version") or None,
+        "ml_label_source": row.get("ml_label_source") or None,
+        "ml_provenance_label": _provenance_label(row.get("ml_label_source")),
         "ml_status": row.get("ml_status") or None,
+        "ranking_reason": row.get("ranking_reason") or None,
         "explanation": row.get("explanation") or row.get("reason", ""),
         "positive_evidence": _json_list(row.get("positive_evidence")),
         "costs": _json_list(row.get("costs")),
@@ -166,15 +173,49 @@ def _parse_candidate(row: Dict[str, str], scored: bool) -> Dict[str, Any]:
     }
 
 
+def _attach_predictions(candidates: List[Dict[str, Any]], raw_rows: List[Dict[str, str]]) -> None:
+    """Add a live ML prediction per candidate when a validated model is usable; never fails the request."""
+
+    for candidate in candidates:
+        candidate["ml_predicted_benefit"] = None
+        candidate["ml_model_version"] = None
+        candidate["ml_label_source"] = None
+    try:
+        from backend.services.ml.predictor import load_ranker, predict_benefit
+
+        state = load_ranker()
+        if not state.usable:
+            for candidate in candidates:
+                candidate["ml_status"] = state.reason
+            return
+        predictions = predict_benefit(state, raw_rows)
+        for candidate, prediction in zip(candidates, predictions):
+            candidate.update({
+                "ml_predicted_benefit": prediction,
+                "ml_model_version": state.version,
+                "ml_label_source": state.label_source,
+                "ml_status": f"Prediction from model {state.version} ({state.provenance_label}); not a measured result.",
+            })
+    except Exception as exc:  # predictions are informational; the rule score is always present
+        for candidate in candidates:
+            candidate["ml_status"] = f"Prediction unavailable ({type(exc).__name__}); rule score shown."
+
+
 @candidates_router.get("")
-def get_candidates(include_covered: bool = Query(default=False)) -> list[dict[str, Any]]:
-    """Return scored index candidates; optionally include candidates already covered by existing indexes."""
+def get_candidates(
+    include_covered: bool = Query(default=False),
+    include_predictions: bool = Query(default=True),
+) -> list[dict[str, Any]]:
+    """Return scored index candidates with rule scores and, when a validated model exists, ML predictions."""
 
     scored_path = settings.resolve_path(settings.candidate_path)
     if not scored_path.exists():
         raise HTTPException(status_code=404, detail=f"Candidate file not found: {scored_path}")
     with scored_path.open("r", newline="", encoding="utf-8") as handle:
-        candidates = [_parse_candidate(row, scored=True) for row in csv.DictReader(handle)]
+        raw_rows = list(csv.DictReader(handle))
+    candidates = [_parse_candidate(row, scored=True) for row in raw_rows]
+    if include_predictions:
+        _attach_predictions(candidates, raw_rows)
     if include_covered:
         feature_path = settings.resolve_path(settings.feature_path)
         if feature_path.exists():

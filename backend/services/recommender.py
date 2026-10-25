@@ -38,7 +38,9 @@ RECOMMENDATION_FIELDS = [
     "ranking_method",
     "ml_predicted_benefit",
     "ml_model_version",
+    "ml_label_source",
     "ml_status",
+    "ranking_reason",
     "explanation",
     "positive_evidence",
     "costs",
@@ -148,6 +150,16 @@ def generate_recommendations(
         kept.append(row)
 
     version = state.version if ml_used else None
+    label_source = (getattr(state, "metadata", None) or {}).get("label_source") if ml_used else None
+    if ml_used:
+        ranking_reason = (
+            f"Ordered by predicted workload_benefit from model {version} "
+            f"({label_source or 'unknown'} labels); the rule score breaks ties."
+        )
+        logger.info("Ranking %s candidates with model %s (%s labels)", len(candidates), version, label_source)
+    else:
+        ranking_reason = f"Rule-based ranking. {ml_status}"
+        logger.info("Ranking %s candidates by rule score: %s", len(candidates), ml_status)
     recommendations: List[Dict[str, Any]] = []
     for rank, row in enumerate(kept, start=1):
         predicted = row.get("ml_predicted_benefit") if ml_used else None
@@ -172,7 +184,9 @@ def generate_recommendations(
             "ranking_method": "ml" if ml_used else "rule",
             "ml_predicted_benefit": predicted,
             "ml_model_version": version,
+            "ml_label_source": label_source,
             "ml_status": ml_status,
+            "ranking_reason": ranking_reason,
             "explanation": explanation,
             "positive_evidence": row.get("positive_evidence") or "[]",
             "costs": row.get("costs") or "[]",
@@ -205,6 +219,9 @@ def ranking_summary(recommendations: List[Dict[str, Any]]) -> Dict[str, Any]:
         "count": len(recommendations),
         "ranking_method": method,
         "ml_status": recommendations[0]["ml_status"] if recommendations else None,
+        "ranking_reason": recommendations[0].get("ranking_reason") if recommendations else None,
+        "ml_model_version": recommendations[0].get("ml_model_version") if recommendations else None,
+        "ml_label_source": recommendations[0].get("ml_label_source") if recommendations else None,
         "priorities": {p: sum(1 for r in recommendations if r["priority"] == p) for p in ("high", "medium", "low")},
     }
 

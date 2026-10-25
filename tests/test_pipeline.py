@@ -9,9 +9,10 @@ from helpers import patched_settings
 
 class PipelineTests(unittest.TestCase):
     def test_run_pipeline_produces_recommendations(self):
-        # Isolate from any local metadata snapshot: the schema comes from database/schema.sql.
+        # Isolate from any local metadata snapshot and trained model: the schema comes from database/schema.sql.
         with tempfile.TemporaryDirectory() as tmpdir, patched_settings(
-            metadata_source="schema", schema_metadata_path=str(Path(tmpdir) / "missing_snapshot.json")
+            metadata_source="schema", schema_metadata_path=str(Path(tmpdir) / "missing_snapshot.json"),
+            model_dir=str(Path(tmpdir) / "models"),
         ):
             log_path = Path(tmpdir) / "query_logs.csv"
             feature_path = Path(tmpdir) / "candidate_features.csv"

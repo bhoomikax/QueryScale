@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 
 from backend.config import ROOT_DIR, settings
 from backend.routes.recommendations import read_recommendations
-from backend.services.benchmark import run_benchmark_detailed
+from backend.services.benchmark import label_protocol, run_benchmark_detailed
 from backend.services.index_manager import BenchmarkError
 from backend.services.jobs import JobConflict, get_job_manager
 from backend.services.ml.dataset import load_benchmark_history
@@ -109,6 +109,31 @@ def read_benchmark_results() -> list[dict[str, Any]]:
     return rows
 
 
+@router.get("/protocol")
+def get_benchmark_protocol() -> dict[str, Any]:
+    """The effective label protocol and which workload signature the training set currently uses."""
+
+    from backend.services.ml.store import open_store
+
+    protocol = label_protocol()
+    try:
+        status = open_store().status()
+        signatures = status.get("measured_workload_signatures") or {}
+        training = status.get("comparable_workload_signature")
+    except Exception:  # the store is optional for this read
+        signatures, training = {}, None
+    return {
+        **protocol,
+        "training_set": {
+            "workload_signature": training,
+            "matches_configured_protocol": training is None or training == protocol["workload_signature"],
+            "measured_valid_samples_by_signature": signatures,
+        },
+        "note": "Benchmarks started from the dashboard or API without explicit iterations/repeats use this protocol. "
+                "Runs with other values are recorded but excluded from training as different_workload.",
+    }
+
+
 @router.get("/results")
 def get_benchmark_results() -> list[dict[str, Any]]:
     """Return per-query measurements from the latest successful benchmark run."""
@@ -179,12 +204,20 @@ def _job_params(recommendation: dict[str, Any], iterations: int, repeats: int) -
 @router.post("/{recommendation_id}")
 def benchmark_recommendation(
     recommendation_id: str,
-    iterations: int = Query(default=100, ge=1, le=10000),
-    repeats: int = Query(default=1, ge=1, le=10),
+    iterations: int | None = Query(default=None, ge=1, le=10000, description="Default: BENCHMARK_ITERATIONS (label protocol)."),
+    repeats: int | None = Query(default=None, ge=1, le=10, description="Default: BENCHMARK_REPEATS (label protocol)."),
     background: bool = Query(default=False),
 ) -> Any:
-    """Apply a recommendation to the test DB only and return measured before/after results."""
+    """Apply a recommendation to the test DB only and return measured before/after results.
 
+    Without ``iterations``/``repeats`` the run uses the configured label protocol, so its
+    label is comparable with CLI-collected labels. Explicit values are allowed for quick
+    smoke runs; such runs are recorded but excluded from training.
+    """
+
+    protocol = label_protocol()
+    iterations = protocol["iterations"] if iterations is None else iterations
+    repeats = protocol["repeats"] if repeats is None else repeats
     recommendation = _find_recommendation(recommendation_id)
     params = _job_params(recommendation, iterations, repeats)
 
@@ -225,6 +258,7 @@ def benchmark_recommendation(
         "priority": recommendation["priority"],
         **_aggregate_results(results),
         "run_id": record["run_id"],
+        "workload": record.get("workload"),
         "workload_summary": record["summary"],
         "index_size_bytes": record.get("index_size_bytes"),
         "write_overhead": record.get("write_overhead"),

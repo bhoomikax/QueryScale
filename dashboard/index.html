@@ -118,6 +118,7 @@
             <strong data-metric="write-overhead">--</strong>
           </div>
           <p class="panel-note" id="benchmark-run">No benchmark run recorded.</p>
+          <p class="panel-note" id="benchmark-protocol">Benchmark protocol: loading…</p>
         </article>
       </section>
 
@@ -166,6 +167,11 @@
               <h2>ML vs rule-based ranking</h2>
             </div>
             <span class="panel-index">06</span>
+          </div>
+          <div class="ml-actions">
+            <button class="text-button" id="train-model" type="button" title="Train from persisted measured benchmark samples">Train model (measured)</button>
+            <button class="text-button" id="train-demo" type="button" title="Train the synthetic demonstration model; it is never used for ranking">Train synthetic demo</button>
+            <span class="job-state" id="training-state"></span>
           </div>
           <div class="ml-evaluation" id="ml-evaluation"></div>
         </article>

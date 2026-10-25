@@ -16,6 +16,7 @@ Schema metadata (read-only)          backend/services/schema_metadata.py     ─
 Candidate generation                 backend/services/candidate_generator.py ──> data/candidate_features.csv
 Rule-based scoring                   backend/services/rule_scorer.py         ──> data/index_candidates.csv
 ML ranking (optional, validated)     backend/services/ml/                    ──> models/
+ML training samples (durable)        backend/services/ml/store.py            ──> data/ml_dataset.sqlite3
 Recommendations + explanations       backend/services/recommender.py         ──> data/recommendations.csv
         │
         ▼
@@ -73,7 +74,9 @@ Edit `.env` and set `DB_USER` and `DB_PASSWORD`. Credentials are read only from 
 | `MAX_INDEX_CANDIDATES`, `MAX_CANDIDATES_PER_TABLE`, `MAX_INDEX_COLUMNS` | Bounds on candidate generation |
 | `RULE_WEIGHTS_PATH` | Optional JSON file overriding rule weights and priority thresholds |
 | `MODEL_DIR`, `ML_MIN_TRAINING_SAMPLES`, `ML_MIN_TRAINING_GROUPS`, `ML_ALLOW_SYNTHETIC_MODEL` | Model storage and training gates |
-| `BENCHMARK_QUERY_TIMEOUT_MS`, `BENCHMARK_WRITE_PROBE_SAMPLES`, `BENCHMARK_SEED` | Benchmark behavior |
+| `ML_DATASET_PATH` | Durable SQLite store of ML training samples (default `data/ml_dataset.sqlite3`) |
+| `BENCHMARK_ITERATIONS`, `BENCHMARK_REPEATS`, `BENCHMARK_SEED` | The label protocol every benchmark entry point defaults to (dashboard, API, `collect_benchmark_labels.py`, pipeline). Runs with other values are recorded but excluded from training |
+| `BENCHMARK_QUERY_TIMEOUT_MS`, `BENCHMARK_WRITE_PROBE_SAMPLES` | Benchmark behavior |
 | `JOB_DATABASE_PATH` | Job status store |
 | `JOB_EXECUTION_MODE`, `WORKER_POLL_SECONDS` | `thread` runs jobs in the API process; `queue` needs `python -m backend.worker` |
 | `MYSQL_HOST_PORT`, `API_HOST_PORT` | Docker host ports, defaults 3307 and 8000 |
@@ -170,6 +173,7 @@ py -m backend.services.cli --metadata-source auto
 py -m backend.services.test_database
 py -m backend.services.benchmark --candidate-id IDX_TRANSACTIONS_ACCOUNT_ID_TXN_DATE --table Transactions --columns account_id,txn_date --iterations 200 --repeats 2
 py scripts/collect_benchmark_labels.py --clone --limit 10 --iterations 200 --repeats 2
+py scripts/ml_dataset.py status
 py scripts/train_model.py
 py -m backend.app
 ```
@@ -209,68 +213,179 @@ The score is a heuristic priority. It is not a measured speedup or a probability
 
 ## ML pipeline
 
-Code is in `backend/services/ml/`.
+Code is in `backend/services/ml/`:
 
-**Features** (`features.py`): 21 numeric features derived from pre-index candidate evidence, such as column count, equality prefix length, ORDER BY coverage, time share, log latency, usage ratios, log table rows, selectivity, write ratio, existing-prefix ratio, and log estimated size. Missing values are median-imputed with indicator columns. Measured index size is excluded because it only exists after a benchmark.
+| Module | Responsibility |
+| --- | --- |
+| `features.py` | The authoritative 21-feature schema (`FEATURE_COLUMNS`), derivation from candidate rows, and `validate_feature_frame`, which rejects any frame whose columns, order, or types differ |
+| `store.py` | Durable SQLite sample store (`ML_DATASET_PATH`): one validated row per benchmark run and candidate, with provenance |
+| `dataset.py` | Target definition, comparability rules, and the explicitly synthetic demo generator |
+| `trainer.py` | Grouped split, grouped cross-validation, the five evaluation entries, suitability gate, atomic artifact publication |
+| `predictor.py` | Checksum, schema-version, provenance and probe-prediction checks before a model is ever used |
+| `status.py` | One eligibility verdict shared by the API, readiness probe, and dashboard |
+| `evaluation.py` | MAE, RMSE, NDCG@k, Precision@k, Spearman, and the rule-versus-ML ranking comparison |
 
-**Label** (`dataset.py`): `workload_benefit`. For one benchmark run of candidate `c`, the same seeded replay runs before and after creating `c`:
+### The 21 features
+
+Every feature is derived from the candidate row produced *before* an index is created, so training (from the snapshot stored with each benchmark run) and prediction (from `data/index_candidates.csv`) see the same vector. Unavailable or non-finite inputs become NaN; the imputer fills NaN with the training median and adds an indicator column. Nothing is ever invented for a missing measurement. `GET /api/ml/features` serves the same list.
+
+| # | Feature | Definition | Derived from |
+| --- | --- | --- | --- |
+| 1 | `column_count` | Number of index columns | `column_count`, `columns` |
+| 2 | `equality_prefix_length` | Leading index columns matched by equality/IN predicates | `equality_prefix_length` |
+| 3 | `has_range_column` | 1 if the column after the equality prefix is a range predicate | `has_range_column` |
+| 4 | `covers_order_by` | 1 if index order satisfies ORDER BY after the equality prefix | `covers_order_by` |
+| 5 | `covers_group_by` | 1 if index order satisfies GROUP BY | `covers_group_by` |
+| 6 | `is_covering` | 1 if the index contains every column the supporting query reads | `is_covering` |
+| 7 | `supporting_query_count` | Distinct query templates the candidate supports | `supporting_query_count`, `supporting_query_ids` |
+| 8 | `workload_share` | Supporting executions / all executions in the query log | `workload_share` |
+| 9 | `time_share` | Supporting latency / total latency in the query log | `time_share` |
+| 10 | `log_avg_latency_ms` | ln(1 + mean latency of supporting executions in ms) | `average_execution_time` |
+| 11 | `log_median_latency_ms` | ln(1 + execution-weighted median of supporting query medians) | `median_execution_time` |
+| 12 | `log_p95_latency_ms` | ln(1 + max supporting P95); missing when fewer than 20 samples | `p95_execution_time` |
+| 13 | `where_usage_ratio` | Supporting executions using the columns in WHERE / supporting executions | `where_usage`, `supporting_observations` |
+| 14 | `join_usage_ratio` | Supporting executions using the leading column as a join key / supporting executions | `join_usage`, `supporting_observations` |
+| 15 | `order_usage_ratio` | Supporting executions whose ORDER BY the index satisfies / supporting executions | `order_usage`, `supporting_observations` |
+| 16 | `log_table_rows` | log10(1 + table row count); missing if unavailable | `table_size` |
+| 17 | `leading_selectivity` | Distinct leading-column values / table rows; missing if unavailable | `leading_column_selectivity` |
+| 18 | `log_leading_cardinality` | log10(1 + distinct leading-column values); missing if unavailable | `leading_column_cardinality` |
+| 19 | `write_ratio` | Write executions / all executions on the table in the captured workload | `write_ratio` |
+| 20 | `existing_prefix_ratio` | Leading columns already indexed by an existing index / column count | `existing_prefix_length`, `column_count` |
+| 21 | `log_estimated_index_mib` | ln(1 + heuristic index size estimate in MiB); missing if unavailable | `estimated_index_bytes` |
+
+Measured index size is deliberately excluded: it only exists after a benchmark and would leak post-treatment information.
+
+### The target: `workload_benefit`
+
+For one benchmark run of candidate `c`, the same seeded replay runs on the isolated test database before and after creating `c` (one warm-up pass, then `repeats` timed passes):
 
 ```text
 workload_benefit = Σ_{q ∈ S} n_q · (median_before_q − median_after_q)  /  Σ_{q ∈ all} n_q · median_before_q
 ```
 
-`n_q` is the number of executions of template `q`. Medians are taken over all timed replays, excluding warm-up. `S` is the set of templates whose post-index EXPLAIN uses `c`, or the candidate's supporting queries when EXPLAIN is unavailable. Storage and write overheads are recorded separately and are not part of the label.
+`n_q` is the number of executions of template `q`, medians are over the timed passes, and `S` is the set of templates whose post-index EXPLAIN uses `c` (the candidate's supporting queries when EXPLAIN is unavailable). Negative values mean the index slowed the affected queries; a candidate the planner never chooses scores exactly 0. Storage and write-probe overheads are recorded separately and are not folded into the label. The computation lives in `backend.services.benchmark.summarize_workload`; the before/after medians it used are stored with every sample.
 
-**Comparability**: only completed runs with the same benchmark protocol version and workload signature are combined. `--strict-dataset` also requires an identical dataset signature, based on exact row counts.
+### One benchmark protocol for every entry point
 
-**Training** (`trainer.py`):
+A label is only comparable with another when both runs replayed the same templates with the same iterations, repeats, seed and protocol version; those values form the run's `workload_signature`. All entry points therefore default to one configured protocol, `BENCHMARK_ITERATIONS=200`, `BENCHMARK_REPEATS=2`, `BENCHMARK_SEED=42`, with one warm-up pass:
 
-- Training is refused below `ML_MIN_TRAINING_SAMPLES` labeled runs or `ML_MIN_TRAINING_GROUPS` distinct candidates. The report then explains why.
-- The split is grouped by candidate, so repeated benchmarks of one index never appear in both train and test.
-- Ridge, decision tree, random forest, and gradient boosting are compared by grouped cross-validated MAE, with a mean predictor as the baseline.
-- Held-out MAE and RMSE are reported for every model.
-- NDCG@k, Precision@k, and Spearman compare rule and ML rankings within each dataset group.
-- A model is marked suitable only when its held-out MAE beats the baseline.
+| Entry point | Uses the protocol |
+| --- | --- |
+| Dashboard "Benchmark on test DB" and `POST /api/benchmark/{id}` without parameters | Yes |
+| `py scripts/collect_benchmark_labels.py` | Yes (flags override, with a warning) |
+| `py scripts/run_local_pipeline.py` final benchmark and `--collect-labels` | Yes (`--benchmark-iterations`, `--benchmark-repeats` override) |
+| `py -m backend.services.benchmark` | Yes (flags override) |
 
-**Persistence**: `models/index_ranker.joblib` holds the pipeline. `models/index_ranker.json` holds the version, timestamp, feature names, target definition, metrics, provenance, scikit-learn version, and SHA-256 checksum. `models/evaluation.json` holds the full report.
+Every run record stores its own `workload` block (iterations, repeats, seed, warm-up passes, template IDs, signature) plus `matches_label_protocol`, the dataset signature (exact row counts), the server version, the candidate snapshot, baseline and indexed workload medians, and the label provenance. Runs on another protocol are kept in the history and the store but excluded from training as `different_workload`, and eligibility counts only the dominant signature, so changing iterations never makes incomparable samples look equivalent. `GET /api/benchmark/protocol` and the dashboard's performance panel show the effective settings. For a quick smoke test pass explicit small values (`?iterations=20&repeats=1`); for labels, keep the defaults or raise them consistently for every run.
 
-**Prediction** (`predictor.py`): the model is used only when the checksum matches, the feature schema matches, the model is suitable, and labels were measured. Predictions are labelled as predictions. No confidence interval is reported.
+### Where the training data lives
 
-**Synthetic demo**: `py scripts/train_model.py --synthetic-demo` trains on formula-generated labels into `models/demo/`. It verifies the code path only. It is never used for ranking, and its metrics say nothing about real recommendation quality.
+| File | Role | In Git? |
+| --- | --- | --- |
+| `data/benchmark_history.jsonl` | Raw append-only audit log of every run: timings, EXPLAIN plans, write probes, cleanup status | No |
+| `data/ml_dataset.sqlite3` (`ML_DATASET_PATH`) | **The training set.** One row per `(run_id, candidate_id)`: 21 features, target, before/after medians, workload and dataset signatures, label provenance, validation status and exclusion reason, feature-schema and dataset versions | No |
+| `models/` (`MODEL_DIR`) | Active model `index_ranker.joblib` + `index_ranker.json`, latest `evaluation.json`, `archive/<version>/` for replaced models, `rejected/<version>/` for models that did not beat the baseline, `demo/` for the synthetic model | No |
 
-### Reproducing the measured ML experiment
+Rules the store enforces:
 
-All commands run on the host against the Docker MySQL (`.env` with `DB_PORT=3307`). Steps 1 and 2 are destructive for `DB_NAME` and `DB_TEST_NAME` only.
+- Every benchmark run (completed or failed) is recorded immediately; `scripts/train_model.py` and `POST /api/ml/train` also re-sync the history file first, so a store rebuilt from scratch is identical. Re-ingesting is idempotent: a run is one row forever, and distinct runs of the same candidate stay distinct observations.
+- A row is `valid` only when the run is `COMPLETED`, uses benchmark protocol 2, carries a feature snapshot, has a finite `workload_benefit`, and has a positive baseline latency. Everything else is kept as `excluded` with the reason (`benchmark_not_completed`, `protocol_version_mismatch`, `missing_feature_snapshot`, `missing_label`, `no_baseline_latency`).
+- Measured training uses only `label_source = measured_benchmark` rows from the most common workload signature (`--strict-dataset` also requires one dataset signature). `synthetic_demo` rows are stored when the demo is trained so the dashboard can count them, but they never satisfy eligibility.
+- Nothing in schema initialization, seeding, cloning, or benchmark cleanup touches the store; those act only on MySQL.
 
 ```powershell
-# 1. Schema, seed (50 branches, 10k customers, 15k accounts, 100k transactions, 5k loans),
-#    200-iteration workload, live metadata, candidates, test-database clone, one benchmark
-py scripts/run_local_pipeline.py --initialize-schema --iterations 200 --seed 42
-
-# 2. Measured labels: every scored candidate, same workload signature each pass.
-#    Repeat the command to add passes; repeated runs of one candidate share a group.
-py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
-py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
-
-# 3. Train from measured history only, then inspect
-py scripts/train_model.py
-Get-Content models\evaluation.json
-Get-Content models\index_ranker.json
-Invoke-RestMethod http://localhost:8000/api/ml/model | ConvertTo-Json -Depth 6
+py scripts/ml_dataset.py status                      # counts, exclusion reasons, eligibility
+py scripts/ml_dataset.py sync                        # ingest data/benchmark_history.jsonl (idempotent)
+py scripts/ml_dataset.py samples --valid-only --limit 20
+py scripts/ml_dataset.py export --output data_backup/ml_dataset.csv
+Copy-Item data\ml_dataset.sqlite3 data_backup\      # backup is a file copy
+py scripts/ml_dataset.py reset --yes                 # deletes samples; the history file is untouched
 ```
 
-```powershell
-# 4. Diagnostic: leave-one-candidate-out evaluation over the same measured records (trains nothing)
-py scripts/evaluate_leave_one_out.py
-Get-Content models\evaluation_logo.json
+### Two modes, never mixed
 
-# 5. Tests (no database needed)
+| | Measured-data mode | Development/demo mode |
+| --- | --- | --- |
+| Command | `py scripts/train_model.py` or `POST /api/ml/train {}` | `py scripts/train_model.py --synthetic-demo` or `POST /api/ml/train {"synthetic_demo": true}` |
+| Labels | Measured benchmark runs from the store | Formula plus noise (`dataset.make_synthetic_dataset`) |
+| Output | `models/` | `models/demo/` |
+| Used for ranking | Yes, once suitable | Never, unless `ML_ALLOW_SYNTHETIC_MODEL=true`; every prediction is then labelled `synthetic-trained` |
+| Eligibility | Needs `ML_MIN_TRAINING_SAMPLES` (20) valid measured rows across `ML_MIN_TRAINING_GROUPS` (5) candidates | Not applicable |
+
+Below the minimums the training job completes with `status: insufficient_data`, `GET /api/ml/model` reports `eligibility.status: insufficient_measured_data`, and rule-based ranking remains authoritative. **Synthetic evaluation is not evidence of real-world index recommendation quality**; it only proves that training, serialization, loading, inference, and evaluation run end to end.
+
+### Training protocol and model selection
+
+1. The frame is validated against the exact 21-feature schema; rows with a missing or non-finite target are dropped and counted (`dropped_rows`), never imputed.
+2. `GroupShuffleSplit` by candidate holds out 25% of the candidates, so repeated runs of one index are never in both train and test.
+3. Five entries are compared: a mean predictor (`dummy_mean`, fitted on the training split only), ridge, decision tree, random forest, and gradient boosting, each behind the same median imputer with missing indicators.
+4. Selection: lowest grouped cross-validated MAE on the training split (`GroupKFold`, up to 5 folds); ties break on the model name. The held-out split is never used for selection.
+5. The report lists held-out MAE and RMSE for all five, plus NDCG@5, Precision@5 (relevance: benefit ≥ 5%) and Spearman for the rule score and the ML prediction within each dataset group.
+6. A model is **suitable** only if its held-out MAE is strictly below the baseline's. Only a suitable model is activated.
+7. The selected model is refit on all rows, written with its metadata to a staging directory, re-loaded and probed, and only then moved into place; the previous model, metadata and report go to `models/archive/<version>/`. An unsuitable model goes to `models/rejected/<version>/` and the previously active model stays. Insufficient data leaves the active model untouched. A per-directory lock refuses concurrent training.
+
+Model metadata (`models/index_ranker.json`) records: model ID and algorithm, timestamp, feature names, order and schema version, dataset fingerprint, sample and candidate counts, measured versus synthetic counts, training configuration and seed, selection basis, CV and held-out metrics for every entry, ranking comparison, suitability, label provenance, Python and library versions, and the SHA-256 of the model file. The predictor refuses a model whose checksum, feature list, schema version, provenance or suitability does not check out, or whose bundle cannot predict a probe row with the installed libraries.
+
+### How recommendations use the model
+
+`backend/services/recommender.py` loads the ranker on every analysis or training run. When it is usable, candidates are ordered by `ml_predicted_benefit` (the rule score breaks ties) and a candidate is kept if it has HIGH or MEDIUM rule priority or a predicted benefit of at least 2%. Each recommendation carries `score` (heuristic rule score, 0 to 100), `priority`, `ml_predicted_benefit` (a prediction of `workload_benefit`, so a fraction of workload latency), `ml_model_version`, `ml_label_source`, `ml_status`, and `ranking_reason`. The two scores have different meanings and scales and are never added together. When the model is unavailable, stale, unsuitable, corrupt, or prediction fails, ranking falls back to the rule score, `ranking_method` is `rule`, and `ml_status` says why; a prediction failure never fails the analysis. `GET /api/candidates` adds the live prediction for every scored candidate when a model is usable. Indexes are only ever created in `DB_TEST_NAME` by the benchmark.
+
+### Interpreting the metrics
+
+- **MAE / RMSE** are errors in `workload_benefit` units (fractions of workload latency); 0.05 means the prediction is off by five percentage points of the workload's median-weighted latency on average.
+- **CV MAE** is the model-selection score (training split only). **Held-out MAE** is on candidates the model never saw. With a dozen candidates the held-out split holds three, so treat it as preliminary; `scripts/evaluate_leave_one_out.py` gives a steadier out-of-fold view.
+- **NDCG@5 / Precision@5 / Spearman** compare orderings against the measured labels. Precision@5 is capped by how many candidates actually reach 5% benefit.
+- Metrics in `models/demo/evaluation.json` describe how well a model learned a formula and say nothing about MySQL.
+
+### ML workflow on Windows
+
+```powershell
+# 0. Environment (once)
+py -m venv .venv; .venv\Scripts\activate; py -m pip install -r requirements.txt
+Copy-Item .env.example .env   # set DB_PASSWORD; for host runs against Docker MySQL use DB_HOST=127.0.0.1 DB_PORT=3307
+docker compose up -d queryscale-mysql
+
+# 1. Schema, seed, workload, metadata, candidates, test-database clone, one benchmark (destructive for DB_NAME/DB_TEST_NAME)
+py scripts/run_local_pipeline.py --initialize-schema --iterations 200 --seed 42
+
+# 2. Measured labels: benchmark every scored candidate; repeat the command for more observations per candidate
+py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
+py scripts/collect_benchmark_labels.py --limit 12 --iterations 200 --repeats 2
+py scripts/ml_dataset.py status                                   # eligibility: 20 samples / 5 candidates
+
+# 3. Synthetic development training (no database needed); writes models/demo, never used for ranking
+py scripts/train_model.py --synthetic-demo --no-rerank
+
+# 4. Measured training, evaluation, and re-ranking
+py scripts/train_model.py
+py scripts/evaluate_leave_one_out.py                              # diagnostic; trains nothing for production
+Get-Content models\evaluation.json; Get-Content models\index_ranker.json
+
+# 5. API and dashboard
+py -m backend.app                                                 # http://127.0.0.1:8000/dashboard/
+Invoke-RestMethod http://127.0.0.1:8000/api/ml/model | ConvertTo-Json -Depth 5     # eligibility and fallback status
+Invoke-RestMethod http://127.0.0.1:8000/api/ml/dataset | ConvertTo-Json -Depth 5
+Invoke-RestMethod "http://127.0.0.1:8000/health/ready?check_db=true"
+
+# 6. Tests (no database needed)
 py -m unittest discover -s tests -p "test_*.py"
 ```
 
-Only runs whose `workload.signature` matches the most common signature are combined (same templates, iterations, seed, repeats, protocol). Runs with a different `repeats` value, such as the single `repeats=1` run from step 1, stay in the history but are excluded from training and listed under `records_excluded`. Training refuses to run below `ML_MIN_TRAINING_SAMPLES` (20) rows or `ML_MIN_TRAINING_GROUPS` (5) candidates. Previous `models/evaluation.json` and `models/index_ranker.*` files are moved to `models/archive/` before a new model is written.
+### Troubleshooting
 
-Pass `--seed` to `scripts/seed.py` or `scripts/run_local_pipeline.py` to make the generated rows reproducible; the 2026-10-18 data was generated before this option existed, so a re-seed reproduces its row counts but not its exact values. The experiment record for this repository's own run is in `docs/ml-experiment-2026-10-18.md`, and the generated files it was read from are frozen under `docs/evidence/2026-10-18/`.
+| Symptom | Cause and fix |
+| --- | --- |
+| `eligibility.status: insufficient_measured_data` | Fewer than 20 valid measured rows or 5 candidates. Run `collect_benchmark_labels.py` again; check `py scripts/ml_dataset.py status` for exclusion reasons such as `different_workload` (a run with other iterations/repeats) |
+| `model_rejected` with a checksum message | `index_ranker.joblib` changed after training. Restore from `models/archive/` or retrain |
+| `model_rejected` with "schema version" | The feature schema changed; retrain |
+| Training job `FAILED` with `training_in_progress` | A CLI or API run already holds `models/.training.lock`; wait, or delete the lock if no training process exists |
+| `suitable: false` after training | The best model did not beat the mean baseline on the held-out candidates; the artifacts are under `models/rejected/`, the previous model stays active. Collect more diverse labels |
+| `/api/ml/dataset` shows samples but training says 0 | They are `synthetic_demo` rows or excluded rows; only valid `measured_benchmark` rows count |
+| `test_database_missing` when benchmarking | Run `py -m backend.services.test_database` to clone the test database |
+| Host run cannot reach MySQL | `.env` points at the container host name; export `DB_HOST=127.0.0.1` and `DB_PORT=3307` for direct Python runs |
+| `py -m backend.app` fails with "only one usage of each socket address" | Another program holds port 8000 (a VM, Docker, or the Compose API container). Run `uvicorn backend.app:app --host 127.0.0.1 --port 8011` and use that port in the URLs above |
+
+The experiment records for this repository's own runs are `docs/ml-experiment-2026-10-18.md` (evidence frozen under `docs/evidence/2026-10-18/`) and `docs/ml-run-2026-10-24.md`.
 
 ## API
 
@@ -282,10 +397,13 @@ Pass `--seed` to `scripts/seed.py` or `scripts/run_local_pipeline.py` to make th
 | `GET /api/jobs`, `GET /api/jobs/{job_id}` | Job status: PENDING, RUNNING, COMPLETED, FAILED |
 | `GET /api/candidates[?include_covered=true]` | Scored candidates with evidence |
 | `GET /api/recommendations`, `GET /api/recommendations/{id}` | Ranked recommendations, explanation, supporting query evidence |
-| `POST /api/benchmark/{id}[?background=true&iterations=&repeats=]` | Benchmark on the test DB, synchronous by default or as a 202 job |
+| `POST /api/benchmark/{id}[?background=true&iterations=&repeats=]` | Benchmark on the test DB, synchronous by default or as a 202 job; without `iterations`/`repeats` it uses the label protocol |
+| `GET /api/benchmark/protocol` | Effective label protocol (iterations, repeats, warm-up, seed, templates, workload signature) and which signature the training set uses |
 | `GET /api/benchmark/results` | Per-query rows of the latest successful run |
 | `GET /api/benchmark/history`, `GET /api/benchmark/history/{run_id}` | All runs, including failed ones, and full run detail with EXPLAIN plans |
-| `GET /api/ml/model`, `GET /api/ml/evaluation`, `POST /api/ml/train` | Model status, evaluation reports, training job |
+| `GET /api/ml/model`, `GET /api/ml/evaluation`, `POST /api/ml/train` | Model status with eligibility and fallback reason, evaluation reports with the five-entry comparison, training job |
+| `GET /api/ml/dataset`, `GET /api/ml/dataset/samples`, `POST /api/ml/dataset/sync` | Persisted sample counts (measured vs synthetic, valid vs excluded), sample rows, idempotent history ingest |
+| `GET /api/ml/features` | The 21-feature schema and target definition |
 
 Only one job of each kind runs at a time. Repeating an identical request returns the active job. A conflicting request returns 409. Benchmark failures return structured errors with codes such as `test_database_missing`, `authentication_failed`, `permission_denied`, `query_timeout`, `connection_error`, and `benchmark_in_progress`.
 
@@ -298,7 +416,8 @@ The existing dashboard at `/dashboard/` keeps its layout. Additions:
 - A per-card benchmark button with job progress.
 - Measured workload benefit, index size, and write overhead in the performance panel.
 - Rows examined in the before/after chart.
-- An ML evaluation panel.
+- An ML evaluation panel: ranking in use with eligibility status and reason, persisted sample counts (measured tagged `measured`, synthetic tagged `synthetic`), the five-entry model comparison table labelled with its label source, rule-versus-ML ranking metrics, and "Train model (measured)" / "Train synthetic demo" buttons with job progress.
+- Recommendation cards show whether a prediction comes from a `measured-trained` or `synthetic-trained` model.
 
 Unavailable values show `--` or "unavailable".
 
